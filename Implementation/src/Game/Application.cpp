@@ -4,6 +4,7 @@
 #include "PlayerController.h"
 #include "OponentController.h"
 #include "BallController.h"
+#include "CameraController.h"
 
 #include <memory>
 #include <string>
@@ -37,7 +38,8 @@ int main()
 		std::weak_ptr<AudioListener> camListener = cam.lock()->AddComponent<AudioListener>();
 			camListener.lock()->SetSelf(camListener.lock());
 			camListener.lock()->SetActiveListner();
-	
+		std::weak_ptr<CameraController> cmsontoller = cam.lock()->AddComponent<CameraController>();
+			
 	
 	std::shared_ptr<Sphere> s = std::make_shared<Sphere>();
 	s->GenerateFibonacciSphere(1000, 100);
@@ -56,7 +58,7 @@ int main()
 		ballRenderer.lock()->SetShader(ballProgram);
 		ballRenderer.lock()->Render = true;
 		ball.lock()->GetTransform()->SetPosition(s->points.at(i));
-		ball.lock()->GetTransform()->SetScale(0.1f, 0.1f, 0.1f);
+		ball.lock()->GetTransform()->SetScale(0.01f, 0.01f, 0.01f);
 	}
 	
 	

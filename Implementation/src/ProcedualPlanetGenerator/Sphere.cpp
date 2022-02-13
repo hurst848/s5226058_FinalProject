@@ -3,10 +3,10 @@
 #include <vector>
 #include <fstream>
 
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Polyhedron_3.h>
-#include <CGAL/poisson_surface_reconstruction.h>
-#include <CGAL/IO/read_points.h>
+#include <Engine/HGE.h>
+
+
+
 
 namespace HGE
 {
@@ -68,15 +68,96 @@ namespace HGE
 		float phi = 3.14159265359f * (3.0f - sqrt(5.0f));
 		for (int i = 0; i < _samples; i++)
 		{
-			float y = 1 - (i / float(_samples - 1)) * 2 * _radius;
+			float y = 1 - (i / float(_samples - 1)) * 2;
 			float radius = sqrt(1 - y * y) ;
 			float theta = phi * i;
 
 			float x = cos(theta) * radius;
 			float z = sin(theta) * radius;
-			points.push_back((vec3(x, y, z) ));
+			points.push_back((vec3(x, y, z) * _radius));
 		}
+
+		std::ofstream stream("FibOutput.xyz");
+		for (int i = 0; i < points.size(); i++)
+		{
+			stream << points.at(i).x;
+			stream << " ";
+			stream << points.at(i).y;
+			stream << " ";
+			stream << points.at(i).z;
+			stream << "\n";
+
+		}
+		stream.close();
+
 		printf("DONE\n");
+
+
+		std::string fname = "FibOutput.xyz";
+
+		std::cerr << "Reading " << std::flush;
+		std::vector<Point> fpoints;
+		if (!CGAL::IO::read_points(fname, std::back_inserter(fpoints)))
+		{
+			std::cerr << "Error: cannot read file" << std::endl;
+			return EXIT_FAILURE;
+		}
+		std::cerr << "done: " << fpoints.size() << " points." << std::endl;
+
+		std::cerr << "Reconstruction ";
+		CGAL::Timer t;
+		t.start();
+
+		Reconstruction reconstruct(fpoints.begin(), fpoints.end());
+		reconstruct.increase_scale(4);
+		reconstruct.reconstruct_surface();
+		//std::cerr << "done in " << t.time() << " sec." << std::endl;
+		//t.reset();
+		//std::ofstream out("sphere.off");
+		//out << reconstruct;
+		//std::cerr << "Writing result in " << t.time() << " sec." << std::endl;
+		//std::cerr << "Done." << std::endl;
+		//return EXIT_SUCCESS;
+		//std::vector<Pwn> points;
+
+		//if (!CGAL::IO::read_points("FibOutput.xyz", std::back_inserter(points),
+		//	CGAL::parameters::point_map(CGAL::First_of_pair_property_map<Pwn>())
+		//	.normal_map(CGAL::Second_of_pair_property_map<Pwn>())))
+		//{
+		//	std::cerr << "Error: cannot read input file!" << std::endl;
+		//	return EXIT_FAILURE;
+		//}
+		//Polyhedron output_mesh;
+		//double average_spacing = CGAL::compute_average_spacing<CGAL::Sequential_tag>
+		//	(points, 6, CGAL::parameters::point_map(CGAL::First_of_pair_property_map<Pwn>()));
+
+
+
+		////if (CGAL::poisson_surface_reconstruction_delaunay
+		////(points.begin(), points.end(),
+		////	CGAL::First_of_pair_property_map<Pwn>(),
+		////	CGAL::Second_of_pair_property_map<Pwn>(),
+		////	output_mesh, average_spacing))
+		////{
+		////	std::ofstream out("kitten_poisson-20-30-0.375.off");
+		////	out << output_mesh;
+		////}
+
+
+
+		return true;
+	}
+
+
+	bool Sphere::GenerateNormalizedCube(int _subDivisions, float _radius)
+	{
+
+
+		return true;
+	}
+
+	bool Sphere::GenerateSpherifiedCube(int _subDivisions, float _radius)
+	{
 		return true;
 	}
 }

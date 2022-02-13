@@ -8,7 +8,7 @@ void CameraController::onUpdate()
 	vec3 direction = vec3(0, 0, 0);
 	HGE::Keys keys;
 	HGE::MouseCharateristics mouse;
-	float speed = 5;
+	float speed = 1;
 
 	if (GetCore()->Input->GetKeyDown(keys.FUNC_LEFTSHIFT))
 	{
@@ -40,6 +40,10 @@ void CameraController::onUpdate()
 	{
 		direction.y -= 1 * (speed * GetCore()->Environment->GetDeltaTime());
 	}
+	if (GetCore()->Input->GetKeyDown(keys.FUNC_ESCAPE))
+	{
+		GetCore()->StopEngine();
+	}
 	
 
 	float xoff = -GetCore()->Input->GetMouseData(mouse.MOUSE_DELTA).x;
@@ -65,12 +69,5 @@ void CameraController::onUpdate()
 
 	GetEntity()->GetTransform()->SetPosition(GetEntity()->GetTransform()->GetPosition() + direction);
 
-	std::shared_ptr<HGE::SphereCollider> collider = GetEntity()->GetComponent<HGE::SphereCollider>();
 
-	
-
-	if (collider->IsColliding())
-	{
-		std::cout << "IM COLLIDING WITH SHIT" << std::endl;
-	}
 }
