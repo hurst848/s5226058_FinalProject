@@ -1,16 +1,8 @@
 #include "Engine/HGE.h"
 
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Scale_space_surface_reconstruction_3.h>
-#include <CGAL/IO/read_points.h>
-#include <CGAL/Timer.h>
 
 namespace HGE
 {
-	typedef CGAL::Exact_predicates_inexact_constructions_kernel     Kernel;
-	typedef Kernel::Point_3                                         Point;
-	typedef CGAL::Scale_space_surface_reconstruction_3<Kernel>      Reconstruction;
-	typedef Reconstruction::Facet_const_iterator                    Facet_iterator;
 
 	struct Sphere
 	{
@@ -28,6 +20,22 @@ namespace HGE
 		std::vector<vec3> points;
 	private:
 		
+
+		
+	};
+
+	struct TerrainFace : private MeshRenderer
+	{
+	public:
+		std::shared_ptr<TerrainFace> Initialize(int _res, vec3 _localUp);
+
+		void ContructMesh();
+
+	
+		int Resolution;
+		vec3 LocalUp;
+		vec3 AxisA;
+		vec3 AxisB;
 	};
 
 }

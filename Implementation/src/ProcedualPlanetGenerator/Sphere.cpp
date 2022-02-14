@@ -1,9 +1,14 @@
 #include "Sphere.h"
 
+#include <Engine/HGE.h>
+
+#include <boost/polygon/voronoi.hpp>
+
 #include <vector>
 #include <fstream>
 
-#include <Engine/HGE.h>
+
+
 
 
 
@@ -93,55 +98,6 @@ namespace HGE
 		printf("DONE\n");
 
 
-		std::string fname = "FibOutput.xyz";
-
-		std::cerr << "Reading " << std::flush;
-		std::vector<Point> fpoints;
-		if (!CGAL::IO::read_points(fname, std::back_inserter(fpoints)))
-		{
-			std::cerr << "Error: cannot read file" << std::endl;
-			return EXIT_FAILURE;
-		}
-		std::cerr << "done: " << fpoints.size() << " points." << std::endl;
-
-		std::cerr << "Reconstruction ";
-		CGAL::Timer t;
-		t.start();
-
-		Reconstruction reconstruct(fpoints.begin(), fpoints.end());
-		reconstruct.increase_scale(4);
-		reconstruct.reconstruct_surface();
-		//std::cerr << "done in " << t.time() << " sec." << std::endl;
-		//t.reset();
-		//std::ofstream out("sphere.off");
-		//out << reconstruct;
-		//std::cerr << "Writing result in " << t.time() << " sec." << std::endl;
-		//std::cerr << "Done." << std::endl;
-		//return EXIT_SUCCESS;
-		//std::vector<Pwn> points;
-
-		//if (!CGAL::IO::read_points("FibOutput.xyz", std::back_inserter(points),
-		//	CGAL::parameters::point_map(CGAL::First_of_pair_property_map<Pwn>())
-		//	.normal_map(CGAL::Second_of_pair_property_map<Pwn>())))
-		//{
-		//	std::cerr << "Error: cannot read input file!" << std::endl;
-		//	return EXIT_FAILURE;
-		//}
-		//Polyhedron output_mesh;
-		//double average_spacing = CGAL::compute_average_spacing<CGAL::Sequential_tag>
-		//	(points, 6, CGAL::parameters::point_map(CGAL::First_of_pair_property_map<Pwn>()));
-
-
-
-		////if (CGAL::poisson_surface_reconstruction_delaunay
-		////(points.begin(), points.end(),
-		////	CGAL::First_of_pair_property_map<Pwn>(),
-		////	CGAL::Second_of_pair_property_map<Pwn>(),
-		////	output_mesh, average_spacing))
-		////{
-		////	std::ofstream out("kitten_poisson-20-30-0.375.off");
-		////	out << output_mesh;
-		////}
 
 
 
@@ -151,7 +107,18 @@ namespace HGE
 
 	bool Sphere::GenerateNormalizedCube(int _subDivisions, float _radius)
 	{
+		std::vector<std::shared_ptr<TerrainFace>> faces(6);
+		vec3 directions[]
+		{
+			vec3(1,0,0), vec3(-1,0,0),
+			vec3(0,1,0), vec3(0,-1,0),
+			vec3(0,0,1), vec3(0,0,-1)
+		};
 
+		for (int i = 0; i < 6; i++)
+		{
+			faces.at(i) = TerrainFace().Initialize(_subDivisions, directions[i]);
+		}
 
 		return true;
 	}
@@ -159,5 +126,49 @@ namespace HGE
 	bool Sphere::GenerateSpherifiedCube(int _subDivisions, float _radius)
 	{
 		return true;
+	}
+
+	std::shared_ptr<TerrainFace> TerrainFace::Initialize(int _res, vec3 _localUp)
+	{
+		std::shared_ptr<TerrainFace> rtrn = std::make_shared<TerrainFace>();
+
+		rtrn->LocalUp = _localUp;
+		rtrn->Resolution = _res;
+
+		rtrn->AxisA = vec3(_localUp.y, _localUp.z, _localUp.x);	
+		rtrn->AxisB = cross(_localUp, AxisA);
+
+	}
+
+	void TerrainFace::ContructMesh()
+	{
+		std::vector<vec3> verticies (Resolution * Resolution);
+		std::vector<int> triangles((Resolution - 1) * (Resolution - 1) * 6);
+
+		int triIndex = 0;
+
+		for	(int i = 0; i < Resolution; i++) // Y
+		{
+			for	(int j = 0; j < Resolution; j++) // X
+			{
+				int itr = j + (i * Resolution);
+				vec2 percent = vec2(j, i / (Resolution - 1));
+				vec3 pointOnUnitCube = LocalUp + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+				verticies.at(itr) = pointOnUnitCube;
+
+				if (i < Resolution - 1 && j < Resolution - 1)
+				{
+					triangles.at(triIndex) = i;
+					triangles.at(triIndex + 1) = i + Resolution + 1;
+					triangles.at(triIndex = 2) = i + Resolution;
+
+					triangles.at(triIndex + 3) = i;
+					triangles.at(triIndex + 4) = i + 1;
+					triangles.at(triIndex + 5) = i + Resolution + 1;
+					triIndex += 6;
+				}
+			}
+		}
+
 	}
 }
