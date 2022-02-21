@@ -30,7 +30,13 @@ namespace HGE
 			{
 				glUseProgram(program->ID);
 				glBindVertexArray(mesh->ID);
-				glBindTexture(GL_TEXTURE_2D, texture->ID);
+
+				if (texture != NULL)
+				{
+					glBindTexture(GL_TEXTURE_2D, texture->ID);
+				}
+
+				
 
 				for (int i = 0; i < program->uniforms.size(); i++)
 				{
@@ -76,9 +82,9 @@ namespace HGE
 				}
 
 				glEnable(GL_DEPTH_TEST);
-				glEnable(GL_CULL_FACE);
+				//glEnable(GL_CULL_FACE);
 				glDrawArrays(GL_TRIANGLES, 0, mesh->VertexCount);
-				glDisable(GL_CULL_FACE);
+				//glDisable(GL_CULL_FACE);
 				glDisable(GL_DEPTH_TEST);
 
 				glBindTexture(GL_TEXTURE_2D, 0);

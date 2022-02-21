@@ -4,7 +4,7 @@
 namespace HGE
 {
 
-	struct Sphere
+	struct Sphere : Component
 	{
 	public:
 		bool GenerateUVSphere(float radius, int numLat, int numLong);
@@ -24,7 +24,7 @@ namespace HGE
 		
 	};
 
-	struct TerrainFace : private MeshRenderer
+	struct TerrainFace
 	{
 	public:
 		std::shared_ptr<TerrainFace> Initialize(int _res, vec3 _localUp);
@@ -36,6 +36,8 @@ namespace HGE
 		vec3 LocalUp;
 		vec3 AxisA;
 		vec3 AxisB;
+		std::shared_ptr<Mesh> mesh;
+
 	};
 
 }

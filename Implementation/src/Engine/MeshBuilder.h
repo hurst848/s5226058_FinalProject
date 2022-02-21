@@ -21,6 +21,8 @@ namespace HGE
 		std::shared_ptr<Mesh> CreateMesh(std::string _name, std::vector<vec3> _verticies, std::vector<vec2> _textureCoordinates, std::vector<vec3> _normals);
 		//!  Creates and returns a Mesh (shared_ptr<Mesh>) given: a name (string), a list of verticies (vector<vec3>)
 		std::shared_ptr<Mesh> CreateMesh(std::string _name, std::vector<vec3> _verticies);
+		//! Creates and returns a Mesh (shared_ptr<Mesh>) given: a name (string), a list of verticies (vector<vec3>) ,a list of surface normals (vector<vec3>), a list of indicies (vector<int>)
+		std::shared_ptr<Mesh> CreateMesh(std::string _name, std::vector<vec3> _verticies, std::vector<vec3> _normals, std::vector<int> _indicies);
 	private:
 		std::shared_ptr<MeshBuilder> Initialize(std::shared_ptr<Assets> _assets);
 
