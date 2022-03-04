@@ -7,7 +7,7 @@
 #include "Input.h"
 #include "Environment.h"
 #include "PhysicsEngine.h"
-#include "AudioManager.h"
+//#include "AudioManager.h"
 
 namespace HGE
 {
@@ -21,7 +21,7 @@ namespace HGE
 		rtrn->Input = std::make_shared<Inputs>();
 		rtrn->Environment = GameEnvironment().Initialize();
 		rtrn->Physics = PhysicsEngine().Initialize();
-		rtrn->Audio = std::make_shared<AudioManager>();
+		//rtrn->Audio = std::make_shared<AudioManager>();
 		return rtrn;
 	}
 

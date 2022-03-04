@@ -10,6 +10,6 @@ public:
 	int OpponentSpeed = 1;
 	void onUpdate();
 	std::weak_ptr<Entity> ball;
-	std::weak_ptr<AudioPlayer> player;
+	//std::weak_ptr<AudioPlayer> player;
 	void Reset();
 };

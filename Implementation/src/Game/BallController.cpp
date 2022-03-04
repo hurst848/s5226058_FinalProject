@@ -42,19 +42,19 @@ void BallController::onUpdate()
 					else { velocity.y += -randomness; }
 					velocity.x = -velocity.x;
 				}
-				player.lock()->Play();
+				/*player.lock()->Play();*/
 				
 				
 			}
 		}
 		else if (currentPos.x > extents ) // player wins 
 		{
-			plyr.lock()->Play();
+			//plyr.lock()->Play();
 			restart = true;
 		}
 		else if (currentPos.x < -extents) // opponent wins
 		{
-			opp.lock()->Play();
+	/*		opp.lock()->Play();*/
 			restart = true;
 		}
 		GetEntity()->GetTransform()->SetPosition(currentPos + velocity);

@@ -1,8 +1,9 @@
 #include "Sphere.h"
 
+#include "Chunk.h"
+
 #include <Engine/HGE.h>
 
-#include <boost/polygon/voronoi.hpp>
 
 #include <vector>
 #include <fstream>
@@ -115,6 +116,8 @@ namespace HGE
 			vec3(0,0,1), vec3(0,0,-1)
 		};
 
+		//std::shared_ptr<Chunk> chunk = Chunk().Initialize();
+
 		std::shared_ptr<Shader> vertex = GetCore()->Resources->AddResource<Shader>("../shaders/BasicCubeSphere.vert");
 		std::shared_ptr<Shader> fragment = GetCore()->Resources->AddResource<Shader>("../shaders/BasicCubeSphere.frag");
 		
@@ -176,10 +179,10 @@ namespace HGE
 
 
 
-				/*vec3 pointOnUnitCube = LocalUp + (j*increment) * 2 * AxisA + (i*increment) * 2 * AxisB;
+				vec3 pointOnUnitCube = LocalUp + (j*increment) * 2 * AxisA + (i*increment) * 2 * AxisB;
 				vec3 pointOnUnitSphere = normalize(pointOnUnitCube);
 				verticies.at(j + i * Resolution) = pointOnUnitSphere;
-				int itr = j + i * Resolution;*/
+				int itr = j + i * Resolution;
 				//vec2 percent = vec2(j, i) / (float)(Resolution - 1);
 				//vec3 pointOnUnitCube = LocalUp + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
 				//vec3 pointOnUnitSphere = normalize(pointOnUnitCube);

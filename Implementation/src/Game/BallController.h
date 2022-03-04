@@ -14,10 +14,10 @@ public:
 	float extents;
 
 	std::weak_ptr<SphereCollider> collider;
-	std::weak_ptr<AudioPlayer> player;
+	//std::weak_ptr<AudioPlayer> player;
 
-	std::weak_ptr<AudioPlayer> opp;
-	std::weak_ptr<AudioPlayer> plyr;
+	//std::weak_ptr<AudioPlayer> opp;
+	//std::weak_ptr<AudioPlayer> plyr;
 private:
 	vec3 startPos = vec3(0, 0, -8);
 	vec3 velocity = vec3(0, 0, 0);

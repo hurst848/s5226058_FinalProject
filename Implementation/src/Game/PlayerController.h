@@ -11,5 +11,5 @@ public:
 
 	void onUpdate();
 	void Reset();
-	std::weak_ptr<AudioPlayer> player;
+	//std::weak_ptr<AudioPlayer> player;
 };

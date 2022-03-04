@@ -36,7 +36,7 @@ int main()
 		vec3(0,0,1),vec3(0,0,1)
 	};
 
-
+	
 
 
 	// Create Core
@@ -61,11 +61,6 @@ int main()
 		std::weak_ptr<Camera> cameraComponent = cam.lock()->AddComponent<Camera>();
 			cameraComponent.lock()->SetAsMainCamera();
 			cameraComponent.lock()->ViewDistance = 10000;
-		std::weak_ptr<AudioListener> listener = cam.lock()->AddComponent<AudioListener>();
-			listener.lock()->SetActiveListner();
-		std::weak_ptr<AudioListener> camListener = cam.lock()->AddComponent<AudioListener>();
-			camListener.lock()->SetSelf(camListener.lock());
-			camListener.lock()->SetActiveListner();
 		std::weak_ptr<CameraController> cmsontoller = cam.lock()->AddComponent<CameraController>();
 			
 

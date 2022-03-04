@@ -17,7 +17,7 @@
 #include "MeshRenderer.h"
 
 #include "Resource.h"
-#include "Sound.h"
+//#include "Sound.h"
 #include "Mesh.h"
 #include "Shader.h"
 #include "Texture.h"
@@ -29,8 +29,8 @@
 #include "SphereCollider.h"
 #include "Rigidbody.h"
 
-#include "AudioListener.h"
-#include "AudioPlayer.h"
+//#include "AudioListener.h"
+//#include "AudioPlayer.h"
 
 
 

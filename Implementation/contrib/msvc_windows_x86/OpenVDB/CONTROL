@@ -1,0 +1,8 @@
+Package: openvdb
+Version: 8.2.0
+Depends: blosc, boost-any, boost-date-time, boost-interprocess, boost-iostreams, boost-ptr-container, boost-system, boost-thread, boost-uuid, ilmbase, openexr, tbb, vcpkg-cmake:x64-windows, vcpkg-cmake-config:x64-windows
+Architecture: x86-windows
+Multi-Arch: same
+Abi: 3b29ffc135dda97fe35cfa5f6f1a8f51f6ee38476551819567848f0b1f89b852
+Description: Sparse volume data structure and tools
+Type: Port
