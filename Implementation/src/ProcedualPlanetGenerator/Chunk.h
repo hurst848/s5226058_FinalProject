@@ -27,12 +27,12 @@ namespace HGE
 		float GetVoxelValue(ivec3 _position);
 
 	private:
-		unsigned long int maxHeight = 1000;
-		unsigned long int minHeight = 100;
+		unsigned long int maxHeight = 100000;
+		unsigned long int minHeight = 45000;
 	
 		openvdb::FloatGrid::Ptr voxels;
 
-		const int chunkSize = 2048;
+		const int chunkSize = 128;
 		std::shared_ptr<Mesh> chunkMesh;
 	};
 }

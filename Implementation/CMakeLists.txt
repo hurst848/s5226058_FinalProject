@@ -78,6 +78,8 @@ add_library(engine
 			src/ProcedualPlanetGenerator/Chunk.cpp
 			src/ProcedualPlanetGenerator/MarchingCubes.h
 			src/ProcedualPlanetGenerator/MarchingCubes.cpp
+			src/ProcedualPlanetGenerator/Face.h
+			src/ProcedualPlanetGenerator/Face.cpp
 
 			src/ProcedualPlanetGenerator/HGE_PPG.h
 			)

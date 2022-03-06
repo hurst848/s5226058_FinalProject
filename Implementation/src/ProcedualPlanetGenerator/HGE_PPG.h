@@ -3,6 +3,7 @@
 
 #include "Sphere.h"
 #include "Chunk.h"
+#include "Face.h"
 #include "MarchingCubes.h"
 
 #endif // !HGE_PPG.h
