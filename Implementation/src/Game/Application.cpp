@@ -1,9 +1,6 @@
 #include "Engine/HGE.h"
 #include "ProcedualPlanetGenerator/HGE_PPG.h"
 
-#include "PlayerController.h"
-#include "OponentController.h"
-#include "BallController.h"
 #include "CameraController.h"
 
 #include <memory>
@@ -105,6 +102,11 @@ int main()
 	//
 	
 	// Start the Engine
+
+	std::shared_ptr<Chunk> testChunk = Chunk().Initialize();
+	//Chunk tstChnk;
+
+
 	core->StartEngine();
 	
 	

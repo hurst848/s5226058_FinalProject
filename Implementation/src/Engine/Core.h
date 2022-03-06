@@ -9,7 +9,7 @@ namespace HGE
 	struct Inputs;
 	struct GameEnvironment;
 	struct PhysicsEngine;
-	//struct AudioManager;
+	
 
 	/*! \brief Is where the game engine actually runs
 	*
@@ -42,8 +42,7 @@ namespace HGE
 		std::shared_ptr<GameEnvironment> Environment;
 		//! Stores a shared pointer to an instance of the PhysicsEngine structure (shared_ptr<PhysicsEngine>)
 		std::shared_ptr<PhysicsEngine> Physics;
-		//! Stores a shared pointer to an instance of the AudioManager structure (shared_ptr<AudioManager>)
-		//std::shared_ptr<AudioManager> Audio;
+
 	private:
 
 		bool running = true;

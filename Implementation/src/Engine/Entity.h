@@ -1,3 +1,6 @@
+#ifndef _ENTITY_H_
+#define _ENTITY_H_
+
 #include <memory>
 #include <vector>
 
@@ -70,3 +73,5 @@ namespace HGE
 		std::weak_ptr<Transform> transform;
 	};
 }
+
+#endif // !_ENTITY_H_
