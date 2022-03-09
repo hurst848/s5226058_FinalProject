@@ -1,57 +1,30 @@
 #include "Chunk.h"
 
-#include "Engine/Transform.h"
-#include "Engine/MeshRenderer.h"
-
-#include <iostream>
+#include "MarchingCubes.h"
+#include "TerrainRenderer.h"
 
 namespace HGE
 {
-
 	std::shared_ptr<Chunk> Chunk::Initialize()
 	{
 		openvdb::initialize();
 
 		std::shared_ptr<Chunk> rtrn = std::make_shared<Chunk>();
 
-		rtrn->AddComponent<Transform>();
-		rtrn->AddComponent<MeshRenderer>();
+		rtrn->renderer = TerrainRenderer().Initialize();
+		rtrn->marchingCubes = MarchingCubes().Initialize();
 
 		rtrn->voxels = openvdb::FloatGrid::create();
-		
 
-		rtrn->minHeight = 100;
-		rtrn->maxHeight = 1000;
-
-		for (int i = 0; i < rtrn->chunkSize; i++)
+		for (int i = 0; i < ChunkSize; i++)
 		{
-			for (int j = 0; j < rtrn->chunkSize; j++)
+			for (int j = 0; j < ChunkSize; j++)
 			{
-				rtrn->SetVoxelValue(ivec3(i, rtrn->minHeight, j), 1.0f);
+				SetVoxelValue(ivec3(i, MinHeight, j), 1.0f, false);
 			}
 		}
-		
-		
-
-		std::cout << rtrn->GetVoxelValue(ivec3(0, rtrn->minHeight, 0)) << std::endl;
-
-		return rtrn;
-
 	}
 
-	bool Chunk::GenerateChunk()
-	{
-		return true;
-	}
-
-
-
-	void Chunk::SetVoxelValue(ivec3 _position, float _value)
-	{
-		openvdb::FloatGrid::Accessor accessor = voxels->getAccessor();
-		openvdb::Coord location(_position.x, _position.y, _position.z);
-		accessor.setValue(location, _value);
-	}
 
 	float Chunk::GetVoxelValue(ivec3 _position)
 	{
@@ -59,5 +32,22 @@ namespace HGE
 		openvdb::Coord location(_position.x, _position.y, _position.z);
 		float rtrn = accessor.getValue(location);
 		return rtrn;
+	}
+	void Chunk::SetVoxelValue(ivec3 _position, float _value, bool _regenerate)
+	{
+		openvdb::FloatGrid::Accessor accessor = voxels->getAccessor();
+		openvdb::Coord location(_position.x, _position.y, _position.z);
+		accessor.setValue(location, _value);
+		if (_regenerate) { regenerateMesh(); }
+	}
+
+	void Chunk::Render()
+	{
+
+	}
+
+	void Chunk::regenerateMesh()
+	{
+		mesh = MarchingCubes::Generate(Self.lock());
 	}
 }

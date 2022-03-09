@@ -16,7 +16,7 @@ namespace HGE
 	struct Entity
 	{
 		friend struct Core;
-
+		//friend struct Chunk;
 	public:
 		//! Returns a shared pointer to the game engine Core (shared_ptr<Core>)
 		std::shared_ptr<Core> GetCore();

@@ -80,6 +80,8 @@ add_library(engine
 			src/ProcedualPlanetGenerator/MarchingCubes.cpp
 			src/ProcedualPlanetGenerator/Face.h
 			src/ProcedualPlanetGenerator/Face.cpp
+			src/ProcedualPlanetGenerator/TerrainRenderer.h
+			src/ProcedualPlanetGenerator/TerrainRenderer.cpp
 
 			src/ProcedualPlanetGenerator/HGE_PPG.h
 			)

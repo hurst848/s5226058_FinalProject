@@ -11,6 +11,7 @@ namespace HGE
 	{
 		friend struct Camera;
 		friend struct MeshRenderer;
+		friend struct TerrainRenderer;
 		
 
 	public:

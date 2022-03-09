@@ -109,7 +109,7 @@ namespace HGE
 	}
 	std::shared_ptr<Entity> Core::AddEntity(std::shared_ptr<Entity> _ent)
 	{
-	
+		_ent->transform = _ent->AddComponent<Transform>();
 		
 		entities.push_back(_ent);
 

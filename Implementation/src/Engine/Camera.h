@@ -1,3 +1,6 @@
+#ifndef _CAMERA_H_
+#define _CAMERA_H_
+
 #include "Component.h"
 #include "Maths.h"
 
@@ -7,7 +10,7 @@ namespace HGE
 {
 	/*! \brief Is a Camera for viewing the world
 	*
-	* The Camera Structure, is a component used to act as camera. It stores the 
+	* The Camera Structure, is a component used to act as camera. It stores the
 	* view matrix for rendering purposes.
 	*
 	*/
@@ -22,7 +25,12 @@ namespace HGE
 		float ViewDistance = 100.0f;
 	private:
 		//! Denotes the threshold objects have to be within in order to be rendered
-		
-		
+
+
 	};
 }
+
+#endif // !_CAMERA_H_
+
+
+

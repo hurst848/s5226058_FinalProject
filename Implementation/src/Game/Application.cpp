@@ -102,25 +102,28 @@ int main()
 	//
 	
 	// Start the Engine
-	MarchingCubes mc;
-	std::shared_ptr<Chunk> testChunk = Chunk().Initialize();
+		
+
+
 	
-	std::shared_ptr<HGE::Mesh> tstMshCnk = mc.RunMarchingCubes(testChunk);
 	//Chunk tstChnk;
 
+			
 
-	std::weak_ptr<Entity> tstchnk = core->AddEntity();
-	std::weak_ptr<MeshRenderer> tstchnkrnd = tstchnk.lock()->AddComponent<MeshRenderer>();
-	std::shared_ptr<ShaderProgram> tstchnkprgrm = std::make_shared<ShaderProgram>();
-	tstchnkprgrm->AddShader(tstvertex);
-	tstchnkprgrm->AddShader(tstfragment);
-	tstchnkprgrm->Compile();
-	tstchnkrnd.lock()->SetMesh(testSquare);
-	tstchnkrnd.lock()->SetShader(tstchnkprgrm);
-	tstchnkrnd.lock()->Render = true;
-	tstchnk.lock()->GetTransform()->SetRotation(90, 0, 0);
 
-	std::cout << "COMPLETE \n\n\n\n\n\n\n COMPLETE";
+
+	/*std::weak_ptr<Entity> tstchnk = core->AddEntity();
+		std::weak_ptr<MeshRenderer> tstchnkrnd = tstchnk.lock()->AddComponent<MeshRenderer>();
+			std::shared_ptr<ShaderProgram> tstchnkprgrm = std::make_shared<ShaderProgram>();
+				tstchnkprgrm->AddShader(tstvertex);
+				tstchnkprgrm->AddShader(tstfragment);
+				tstchnkprgrm->Compile();
+			tstchnkrnd.lock()->SetMesh(testSquare);
+			tstchnkrnd.lock()->SetShader(tstchnkprgrm);
+			tstchnkrnd.lock()->Render = true;
+		tstchnk.lock()->GetTransform()->SetRotation(0, 0, 0);*/
+
+	//std::cout << "COMPLETE \n\n\n\n\n\n\n COMPLETE";
 	core->StartEngine();
 	
 	

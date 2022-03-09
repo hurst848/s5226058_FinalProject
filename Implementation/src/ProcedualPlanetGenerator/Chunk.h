@@ -1,38 +1,50 @@
-
-#include "Engine/Entity.h"
 #include "Engine/Maths.h"
 
 #include <openvdb/openvdb.h>
 
 #include <memory>
-#include <vector>
-
-// 1 Chunk takes up the space of a 100 X 100 area
-
-struct Mesh;
 
 namespace HGE
 {
-	struct Chunk : Entity
+	struct Mesh;
+	struct TerrainRenderer;
+	struct MarchingCubes;
+
+
+	struct Chunk
 	{
 		friend struct MarchingCubes;
+		friend struct TerrainRenderer;
+
 	public:
 
 		std::shared_ptr<Chunk> Initialize();
-		
-	
-		bool GenerateChunk();
 
-		void SetVoxelValue(ivec3 _position, float _value);
+		
 		float GetVoxelValue(ivec3 _position);
+		void SetVoxelValue(ivec3 _position, float _value, bool _regenerate);
+
+		void Render();
+
+		std::weak_ptr<Chunk> Self;
+
+		unsigned long int MinHeight =  45000;
+		unsigned long int MaxHeight = 100000;
+
+		unsigned int ChunkSize = 100;
+
+		vec3 Position;
+		vec3 Rotation;
 
 	private:
-		unsigned long int maxHeight = 100000;
-		unsigned long int minHeight = 45000;
-	
-		openvdb::FloatGrid::Ptr voxels;
+		void regenerateMesh();
 
-		const int chunkSize = 128;
-		std::shared_ptr<Mesh> chunkMesh;
+		std::shared_ptr<TerrainRenderer> renderer;
+		std::shared_ptr<MarchingCubes> marchingCubes;
+		std::shared_ptr<Mesh> mesh;
+
+		
+
+		openvdb::FloatGrid::Ptr voxels;
 	};
 }

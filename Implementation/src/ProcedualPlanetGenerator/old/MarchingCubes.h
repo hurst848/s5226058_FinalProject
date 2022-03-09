@@ -1,3 +1,5 @@
+#include "Engine/Maths.h"
+
 #include <memory>
 
 namespace HGE
@@ -8,15 +10,26 @@ namespace HGE
 	struct MarchingCubes
 	{
 	public:
-		std::shared_ptr<MarchingCubes> Initialize();
+		std::shared_ptr<Mesh> RunMarchingCubes(std::shared_ptr<Chunk> _chunk);
+		std::shared_ptr<Mesh> TraditionalRender(std::shared_ptr<Chunk> _chunk);
 
-		std::shared_ptr<Mesh> Generate(std::shared_ptr<Chunk> _chunk);
+		void SetISOValue(float _ISO);
 
+	private:
 		vec3 vertexInterpolation(vec3 _point1, vec3 _point2, std::shared_ptr<Chunk> _chunk);
 
+		float isoValue = 1.0f;
 
-		std::weak_ptr<MarchingCubes> Self;
-	private:
+
+		int workerLocked = -1;
+
+
+
+
+
+
+		const int JobSize = 1000;
+
 		const int edgeTable[256] =
 		{
 			0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
@@ -311,5 +324,6 @@ namespace HGE
 			{0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 			{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
 		};
+
 	};
 }
