@@ -60,70 +60,8 @@ int main()
 			cameraComponent.lock()->ViewDistance = 10000;
 		std::weak_ptr<CameraController> cmsontoller = cam.lock()->AddComponent<CameraController>();
 			
-
-	//std::weak_ptr<Entity> tstSquare = core->AddEntity();
-	//	std::weak_ptr<MeshRenderer> tstRenderer = tstSquare.lock()->AddComponent<MeshRenderer>();
-	//		std::shared_ptr<ShaderProgram> tstProgram = std::make_shared<ShaderProgram>();
-	//			tstProgram->AddShader(tstvertex);
-	//			tstProgram->AddShader(tstfragment);
-	//			tstProgram->Compile();
-	//		tstRenderer.lock()->SetMesh(testSquare);
-	//		tstRenderer.lock()->SetShader(tstProgram);
-	//		tstRenderer.lock()->Render = true;
-
-
-	// create planet
-	/*std::weak_ptr<Entity> planet = core->AddEntity();
-		std::weak_ptr<Sphere> mesh = planet.lock()->AddComponent<Sphere>();
-			mesh.lock()->GenerateNormalizedCube(10, 5);
-		planet.lock()->GetTransform()->SetPosition(0,0,0);
-
-
-
-	std::shared_ptr<Sphere> s = std::make_shared<Sphere>();*/
-	//s->GenerateFibonacciSphere(1000, 100);
-
-	//for (int i = 0; i < s->points.size(); i++)
-	//{
-	//	// Create Ball
-	//	std::weak_ptr<Entity> ball = core->AddEntity();
-	//	std::weak_ptr<MeshRenderer> ballRenderer = ball.lock()->AddComponent<MeshRenderer>();
-	//	std::shared_ptr<ShaderProgram> ballProgram = std::make_shared<ShaderProgram>();
-	//	ballProgram->AddShader(vertex);
-	//	ballProgram->AddShader(fragment);
-	//	ballProgram->Compile();
-	//	ballRenderer.lock()->SetMesh(ballMesh);
-	//	ballRenderer.lock()->SetTexture(ballTexture);
-	//	ballRenderer.lock()->SetShader(ballProgram);
-	//	ballRenderer.lock()->Render = true;
-	//	ball.lock()->GetTransform()->SetPosition(s->points.at(i));
-	//	ball.lock()->GetTransform()->SetScale(0.01f, 0.01f, 0.01f);
-	//}
-	//
+	// Create and build a test Chunk
 	
-	// Start the Engine
-		
-
-
-	
-	//Chunk tstChnk;
-
-			
-
-
-
-	/*std::weak_ptr<Entity> tstchnk = core->AddEntity();
-		std::weak_ptr<MeshRenderer> tstchnkrnd = tstchnk.lock()->AddComponent<MeshRenderer>();
-			std::shared_ptr<ShaderProgram> tstchnkprgrm = std::make_shared<ShaderProgram>();
-				tstchnkprgrm->AddShader(tstvertex);
-				tstchnkprgrm->AddShader(tstfragment);
-				tstchnkprgrm->Compile();
-			tstchnkrnd.lock()->SetMesh(testSquare);
-			tstchnkrnd.lock()->SetShader(tstchnkprgrm);
-			tstchnkrnd.lock()->Render = true;
-		tstchnk.lock()->GetTransform()->SetRotation(0, 0, 0);*/
-
-	//std::cout << "COMPLETE \n\n\n\n\n\n\n COMPLETE";
 	core->StartEngine();
 	
 	

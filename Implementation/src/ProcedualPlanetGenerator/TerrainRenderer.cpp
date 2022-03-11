@@ -39,6 +39,8 @@ namespace HGE
 
 		modelMatrix = translate(modelMatrix, chunk.lock()->Position);
 
+		modelMatrix = scale(modelMatrix, vec3(0.1f, 1.0f, 0.1f));
+
 		modelMatrix = rotate(modelMatrix, radians(chunk.lock()->Rotation.x), vec3(0, 1, 0));
 		modelMatrix = rotate(modelMatrix, radians(chunk.lock()->Rotation.y), vec3(1, 0, 0));
 		modelMatrix = rotate(modelMatrix, radians(chunk.lock()->Rotation.z), vec3(0, 0, 1));

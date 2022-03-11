@@ -1,3 +1,5 @@
+#include "Engine/Maths.h"
+
 #include <memory>
 
 namespace HGE
@@ -13,6 +15,8 @@ namespace HGE
 		std::shared_ptr<Mesh> Generate(std::shared_ptr<Chunk> _chunk);
 
 		vec3 vertexInterpolation(vec3 _point1, vec3 _point2, std::shared_ptr<Chunk> _chunk);
+		
+
 
 
 		std::weak_ptr<MarchingCubes> Self;

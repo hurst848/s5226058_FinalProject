@@ -23,6 +23,8 @@ namespace HGE
 				SetVoxelValue(ivec3(i, MinHeight, j), 1.0f, false);
 			}
 		}
+
+		return rtrn;
 	}
 
 
@@ -48,6 +50,6 @@ namespace HGE
 
 	void Chunk::regenerateMesh()
 	{
-		mesh = MarchingCubes::Generate(Self.lock());
+		mesh = marchingCubes->Generate(Self.lock());
 	}
 }
