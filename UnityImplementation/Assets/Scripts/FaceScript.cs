@@ -6,6 +6,9 @@ public class FaceScript : MonoBehaviour
 {
     public float BaseResolution = 100;
     private float radius;
+    public float NoiseScale = 1;
+    private float MaximumTerrainHeight;
+
 
     // Start is called before the first frame update
     void Start()
@@ -19,8 +22,13 @@ public class FaceScript : MonoBehaviour
         
     }
 
-    public void GenerateFace(Vector3 _normal, float _radius)
+    public void SetTerrainFactors(float _maximumTerrainHeight)
     {
+        MaximumTerrainHeight = _maximumTerrainHeight;
+    }
+
+    public void GenerateFace(Vector3 _normal, float _radius)
+    {  
         radius = _radius;
 
         List<Vector3> verticies = new List<Vector3>();
@@ -35,6 +43,7 @@ public class FaceScript : MonoBehaviour
         {
             for (int x = 0; x < BaseResolution; x++)
             {
+             
                 int itr = x + (y * (int)BaseResolution);
                 Vector2 percent = new Vector2(y, x) / (BaseResolution - 1);
                 Vector3 pointOnUnitCube = _normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
@@ -61,8 +70,44 @@ public class FaceScript : MonoBehaviour
         m.RecalculateNormals();
         m.RecalculateBounds();
 
+
+        for (int x = 0; x < BaseResolution; x++)
+        {
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                int index = (x * (int)BaseResolution) + y;
+                verticies[index] += m.normals[index] * returnY(x, y);
+            }
+        }
+        m.SetVertices(verticies);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+
         MeshFilter Filter = GetComponent<MeshFilter>();
         Filter.mesh.Clear();
         Filter.mesh = m;
+    }
+
+
+    // https://forum.unity.com/threads/re-map-a-number-from-one-range-to-another.119437/
+    private float map(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
+    {
+        return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
+    }
+
+    float returnY(int _x, int _y)
+    {
+        float rtrn = 0.0f;
+
+        float xcoord = (float)_x / (4096) * NoiseScale;
+        float ycoord = (float)_y / (4096) * NoiseScale;
+
+        rtrn = Mathf.PerlinNoise(xcoord, ycoord);
+
+        Debug.Log("Perlin " + rtrn.ToString());
+
+        rtrn = map(rtrn, 0.0f, 1.0f, 0, MaximumTerrainHeight);
+
+        return rtrn;
     }
 }

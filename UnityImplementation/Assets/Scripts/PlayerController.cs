@@ -10,6 +10,12 @@ public class PlayerController : MonoBehaviour
     public float StandardSpeed = 10.0f;
     public float SprintSpeed = 20.0f;
 
+    public CameraScript cs;
+
+    void Start()
+    {
+        //cs = GetComponent<CameraScript>();
+    }
 
     void Update()
     {
@@ -40,7 +46,7 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKey(KeyCode.LeftShift)) { position *= SprintSpeed * Time.deltaTime; }
         else { position *= StandardSpeed * Time.deltaTime; }
 
-        GetComponent<CameraScript>().Move(position);
+        cs.Move(position);
         transform.position += position;
     }
 
