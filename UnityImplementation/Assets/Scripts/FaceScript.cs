@@ -6,8 +6,10 @@ public class FaceScript : MonoBehaviour
 {
     public float BaseResolution = 100;
     private float radius;
-    public float NoiseScale = 1;
+    public float NoiseScale = 1000;
     private float MaximumTerrainHeight;
+
+    Noise noise = new Noise();
 
 
     // Start is called before the first frame update
@@ -79,6 +81,8 @@ public class FaceScript : MonoBehaviour
                 verticies[index] += m.normals[index] * returnY(x, y);
             }
         }
+
+
         m.SetVertices(verticies);
         m.RecalculateNormals();
         m.RecalculateBounds();
@@ -95,6 +99,7 @@ public class FaceScript : MonoBehaviour
         return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
     }
 
+
     float returnY(int _x, int _y)
     {
         float rtrn = 0.0f;
@@ -104,9 +109,9 @@ public class FaceScript : MonoBehaviour
 
         rtrn = Mathf.PerlinNoise(xcoord, ycoord);
 
-        Debug.Log("Perlin " + rtrn.ToString());
+        rtrn = noise.Evaluate(new Vector3(xcoord, ycoord, 0));
 
-        rtrn = map(rtrn, 0.0f, 1.0f, 0, MaximumTerrainHeight);
+        rtrn = map(rtrn, -1.0f, 1.0f, 0, MaximumTerrainHeight);
 
         return rtrn;
     }
