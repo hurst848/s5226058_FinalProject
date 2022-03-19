@@ -343,11 +343,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3772096959486323097, guid: 5bbb0d73bb41e5d4587924572f26973c, type: 3}
       propertyPath: Radius
-      value: 1000
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 3772096959486323097, guid: 5bbb0d73bb41e5d4587924572f26973c, type: 3}
       propertyPath: MaximumTerrainHeight
-      value: 100
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4618197777742493068, guid: 5bbb0d73bb41e5d4587924572f26973c, type: 3}
       propertyPath: m_RootOrder

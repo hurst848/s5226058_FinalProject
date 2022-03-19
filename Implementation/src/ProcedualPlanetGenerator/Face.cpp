@@ -14,8 +14,9 @@ namespace HGE
 			for (int j = 0; j < rtrn->chunkDimentions; j++)
 			{
 				rtrn->chunks.push_back(Chunk().Initialize());
-				rtrn->chunks.at(i+j)->
+				//rtrn->chunks.at(i+j)->
 			}
 		}
+		return rtrn;
 	}
 }
