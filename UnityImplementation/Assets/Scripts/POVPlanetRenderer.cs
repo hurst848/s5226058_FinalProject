@@ -23,7 +23,7 @@ public class POVPlanetRenderer : MonoBehaviour
 
     private List<Vector3> verticies;
     private List<int> triangles;
-    private List<Color> colours;
+    private Color[] colours;
     private Noise noise;
 
     // Start is called before the first frame update
@@ -86,32 +86,32 @@ public class POVPlanetRenderer : MonoBehaviour
             GenerateFace(-transform.forward);
         }
 
-        colours = new List<Color>(verticies.Count);
+        colours = new Color[verticies.Count];
         
         Mesh m = new Mesh();
 
         m.SetVertices(verticies);
         m.SetTriangles(triangles,0);
-        m.Optimize();
         m.RecalculateNormals();
+        m.RecalculateBounds();
 
-        
-       
+
         for (int i = 0; i < verticies.Count; i++)
         {
             Vector3 tmp = verticies[i];
             float newHeight = returnY(tmp);
             //Debug.Log(newHeight);
-            //verticies[i] += m.normals[i] * newHeight;
-            //colours[i] = testTererainGradient.Evaluate(map(newHeight,0,MaximumTerrainHeight,0,1));
+            verticies[i] += m.normals[i] * newHeight;
+            colours[i] = testTererainGradient.Evaluate(map(newHeight,0,MaximumTerrainHeight,0,1));
         }
 
         m.SetVertices(verticies);
-        //m.SetColors(colours);
+        m.SetColors(colours);
         m.RecalculateNormals();
         m.RecalculateBounds();
 
 
+        planetMeshFilter.mesh.Clear();
         planetMeshFilter.mesh = m;
 
         
@@ -134,8 +134,8 @@ public class POVPlanetRenderer : MonoBehaviour
         {
             for (int x = 0; x < BaseResolution; x++)
             {
-                int itr = (x + (y * (int)BaseResolution)) + strt;
-                Vector2 percent = new Vector2(y, x) / (BaseResolution - 1);
+                int itr = (x + (y * BaseResolution)) + strt;
+                Vector2 percent = new Vector2(y, x) / (float)(BaseResolution - 1);
                 Vector3 pointOnUnitCube = _normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
                 Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
                 verticies.Add(pointOnUnitSphere);

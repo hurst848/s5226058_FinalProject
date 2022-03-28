@@ -187,6 +187,10 @@ PrefabInstance:
       value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7684465942232721673, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
+      propertyPath: MaximumTerrainHeight
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 7684465942232721673, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
       propertyPath: testTererainGradient.ctime1
       value: 65535
       objectReference: {fileID: 0}
