@@ -11,27 +11,33 @@ public class POVPlanetRenderer : MonoBehaviour
 
     public int radius;
     public int BaseResolution = 100;
-    
-    private CameraScript camera;
+    public float noiseScale = 1000;
+    public float MaximumTerrainHeight = 100;
+    public Gradient testTererainGradient;
+
+
+    private CameraScript cam;
     private MeshFilter planetMeshFilter;
+
 
 
     private List<Vector3> verticies;
     private List<int> triangles;
+    private List<Color> colours;
+    private Noise noise;
 
     // Start is called before the first frame update
     void Start()
     {
-        camera = GameObject.FindObjectOfType<CameraScript>();
-        if (camera == null)
+        cam = GameObject.FindObjectOfType<CameraScript>();
+        if (cam == null)
         {
             throw new System.Exception();
         }
         planetMeshFilter = GetComponent<MeshFilter>();
 
-        verticies = new List<Vector3>();
-        triangles = new List<int>();
-        
+        noise = new Noise();
+
         GenerateMesh();
     }
 
@@ -40,49 +46,75 @@ public class POVPlanetRenderer : MonoBehaviour
     {
         // Calculate whether the mesh needs updating
         //double distanceToPlanet = DVec3.Distance(GalacticPosition, camera.GalacticPosition);
-        GenerateMesh();
+        //GenerateMesh();
     }
 
 
     private void GenerateMesh()
     {
-        if (Vector3.Dot(transform.up, (transform.position - camera.transform.position).normalized) <= 0.25f)
+        verticies = new List<Vector3>();
+        triangles = new List<int>();
+
+        if (Vector3.Dot(transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            Debug.Log("UP");
             GenerateFace(transform.up);
         }
-        if (Vector3.Dot(-transform.up, (transform.position - camera.transform.position).normalized) <= 0.25f)
+        if (Vector3.Dot(-transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            Debug.Log("DOWN");
             GenerateFace(-transform.up);
         }
-        if (Vector3.Dot(transform.right, (transform.position - camera.transform.position).normalized) <= 0.25f)
+        if (Vector3.Dot(transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            Debug.Log("RIGHT");
             GenerateFace(transform.right);
         }
-        if (Vector3.Dot(-transform.right, (transform.position - camera.transform.position).normalized) <= 0.25f)
+        if (Vector3.Dot(-transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            Debug.Log("LEFT");
             GenerateFace(-transform.right);
         }
-        if (Vector3.Dot(transform.forward, (transform.position - camera.transform.position).normalized) <= 0.25f)
+        if (Vector3.Dot(transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            Debug.Log("FORWARD");
             GenerateFace(transform.forward);
         }
-        if (Vector3.Dot(-transform.forward, (transform.position - camera.transform.position).normalized) <= 0.25f)
+        if (Vector3.Dot(-transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            Debug.Log("BACK");
             GenerateFace(-transform.forward);
         }
 
-
+        colours = new List<Color>(verticies.Count);
+        
         Mesh m = new Mesh();
 
         m.SetVertices(verticies);
         m.SetTriangles(triangles,0);
+        m.Optimize();
+        m.RecalculateNormals();
+
+        
+       
+        for (int i = 0; i < verticies.Count; i++)
+        {
+            Vector3 tmp = verticies[i];
+            float newHeight = returnY(tmp);
+            //Debug.Log(newHeight);
+            //verticies[i] += m.normals[i] * newHeight;
+            //colours[i] = testTererainGradient.Evaluate(map(newHeight,0,MaximumTerrainHeight,0,1));
+        }
+
+        m.SetVertices(verticies);
+        //m.SetColors(colours);
         m.RecalculateNormals();
         m.RecalculateBounds();
 
+
         planetMeshFilter.mesh = m;
 
-        verticies.Clear();
-        triangles.Clear();
+        
 
     }
     
@@ -113,7 +145,6 @@ public class POVPlanetRenderer : MonoBehaviour
                     triangles.Add(itr + (int)BaseResolution);
                     triangles.Add(itr + (int)BaseResolution + 1);
 
-
                     triangles.Add(itr);
                     triangles.Add(itr + (int)BaseResolution + 1);
                     triangles.Add(itr + 1);
@@ -121,8 +152,25 @@ public class POVPlanetRenderer : MonoBehaviour
                 }
             }
         }
+
+        
+
     }
 
-    
+    float returnY(Vector3 vertex)
+    {
+        float rtrn = 0.0f;
+
+        float xcoord = vertex.x / (4096) * noiseScale;
+        float ycoord = vertex.y / (4096) * noiseScale;
+        float zcoord = vertex.z / (4096) * noiseScale;
+
+        rtrn = noise.Evaluate(new Vector3(xcoord, ycoord, zcoord));
+        
+        rtrn = map(rtrn, -1.0f, 1.0f, 0.0f, MaximumTerrainHeight);
+        Debug.Log(rtrn);
+        return rtrn;
+    }
+
 
 }

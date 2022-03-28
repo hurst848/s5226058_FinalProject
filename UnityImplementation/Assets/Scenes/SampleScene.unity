@@ -174,13 +174,33 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2470226141411868639, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: a56ec18732404a14a8544d9b0658eeae, type: 2}
     - target: {fileID: 7241655421618396360, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
       propertyPath: m_Name
       value: POVPlanet
       objectReference: {fileID: 0}
     - target: {fileID: 7684465942232721673, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
       propertyPath: radius
-      value: 10
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 7684465942232721673, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
+      propertyPath: testTererainGradient.ctime1
+      value: 65535
+      objectReference: {fileID: 0}
+    - target: {fileID: 7684465942232721673, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
+      propertyPath: testTererainGradient.key1.b
+      value: 0.1254902
+      objectReference: {fileID: 0}
+    - target: {fileID: 7684465942232721673, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
+      propertyPath: testTererainGradient.key1.g
+      value: 0.1254902
+      objectReference: {fileID: 0}
+    - target: {fileID: 7684465942232721673, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
+      propertyPath: testTererainGradient.key1.r
+      value: 0.1254902
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f96ae9ca33a35c443b8c894008d57099, type: 3}
