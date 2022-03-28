@@ -21,8 +21,11 @@ public class DVec3
     public static DVec3 operator +(DVec3 a, DVec3 b) => new DVec3(a.x + b.x, a.y + b.y, a.z + b.z);
     public static DVec3 operator +(DVec3 a, Vector3 b) => new DVec3(a.x + b.x, a.y + b.y, a.z + b.z);
 
+    [SerializeField]
     public double x;
+    [SerializeField]
     public double y;
+    [SerializeField]
     public double z;
 
 }

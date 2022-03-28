@@ -55,6 +55,8 @@ public class PlanetScript : MonoBehaviour
 
         Faces[5].GetComponent<FaceScript>().SetTerrainFactors(MaximumTerrainHeight);
         Faces[5].GetComponent<FaceScript>().GenerateFace(new Vector3(0, 0, -1), Radius);
+
+        
     }
 
     public void MovePlanet(Vector3 _inp)

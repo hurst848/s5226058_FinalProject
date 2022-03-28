@@ -30,9 +30,12 @@ public class CameraScript : MonoBehaviour
 
             Vector3 _moveDirection = _new - _initial;
 
-            for (int i = 0; i < planets.Length; i++)
+            if (planets.Length > 0)
             {
-                planets[i].MovePlanet(_moveDirection);
+                for (int i = 0; i < planets.Length; i++)
+                {
+                    planets[i].MovePlanet(_moveDirection);
+                } 
             }
         }
     }
