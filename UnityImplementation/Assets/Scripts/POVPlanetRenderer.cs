@@ -25,7 +25,8 @@ public class POVPlanetRenderer : MonoBehaviour
     private List<int> triangles;
     private Color[] colours;
     private Noise noise;
-
+    private bool Generated = false;
+    bool running;
     // Start is called before the first frame update
     void Start()
     {
@@ -38,7 +39,7 @@ public class POVPlanetRenderer : MonoBehaviour
 
         noise = new Noise();
 
-        GenerateMesh();
+        StartCoroutine(DirtyGenerateMesh());
     }
 
     // Update is called once per frame
@@ -46,46 +47,71 @@ public class POVPlanetRenderer : MonoBehaviour
     {
         // Calculate whether the mesh needs updating
         //double distanceToPlanet = DVec3.Distance(GalacticPosition, camera.GalacticPosition);
-        //GenerateMesh();
+        
+        if (Generated)
+        {
+            //StartCoroutine(GenerateMesh());
+        }
+        
     }
 
 
-    private void GenerateMesh()
+    IEnumerator GenerateMesh()
     {
+        Generated = false;
         verticies = new List<Vector3>();
         triangles = new List<int>();
 
         if (Vector3.Dot(transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            running = true;
             Debug.Log("UP");
-            GenerateFace(transform.up);
+            StartCoroutine(GenerateFace(transform.up));
+            StartCoroutine(WaitUnitlDone());
+            Debug.Log("UP DONE");
         }
         if (Vector3.Dot(-transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            running = true;
             Debug.Log("DOWN");
-            GenerateFace(-transform.up);
+            StartCoroutine(GenerateFace(-transform.up));
+            StartCoroutine(WaitUnitlDone());
+            Debug.Log("DOWN DONE");
         }
         if (Vector3.Dot(transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            running = true;
             Debug.Log("RIGHT");
-            GenerateFace(transform.right);
+            StartCoroutine(GenerateFace(transform.right));
+            StartCoroutine(WaitUnitlDone());
+            Debug.Log("RIGHT DONE");
         }
         if (Vector3.Dot(-transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            running = true;
             Debug.Log("LEFT");
-            GenerateFace(-transform.right);
+            StartCoroutine(GenerateFace(-transform.right));
+            StartCoroutine(WaitUnitlDone());
+            Debug.Log("LEFT DONE");
         }
         if (Vector3.Dot(transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            running = true;
             Debug.Log("FORWARD");
-            GenerateFace(transform.forward);
+            StartCoroutine(GenerateFace(transform.forward));
+            StartCoroutine(WaitUnitlDone());
+            Debug.Log("FORWARD DONE");
         }
         if (Vector3.Dot(-transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f)
         {
+            running = true;
             Debug.Log("BACK");
-            GenerateFace(-transform.forward);
+            StartCoroutine(GenerateFace(-transform.forward));
+            StartCoroutine(WaitUnitlDone());
+            Debug.Log("BACK DONE");
         }
 
+        Debug.Log(verticies.Count);
         colours = new Color[verticies.Count];
         
         Mesh m = new Mesh();
@@ -100,32 +126,283 @@ public class POVPlanetRenderer : MonoBehaviour
         {
             Vector3 tmp = verticies[i];
             float newHeight = returnY(tmp);
-            //Debug.Log(newHeight);
+
             verticies[i] += m.normals[i] * newHeight;
-            colours[i] = testTererainGradient.Evaluate(map(newHeight,0,MaximumTerrainHeight,0,1));
+            colours[i] = testTererainGradient.Evaluate(map(newHeight, 0, MaximumTerrainHeight, 0, 1));
+            
         }
+
 
         m.SetVertices(verticies);
         m.SetColors(colours);
         m.RecalculateNormals();
+        m.OptimizeReorderVertexBuffer();
         m.RecalculateBounds();
 
 
         planetMeshFilter.mesh.Clear();
         planetMeshFilter.mesh = m;
 
-        
+        Generated = true;
+        yield return null;
 
     }
-    
-    
+
+    IEnumerator DirtyGenerateMesh()
+    {
+        Generated = false;
+        verticies = new List<Vector3>();
+        triangles = new List<int>();
+
+        if (Vector3.Dot(transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f)
+        {
+            Debug.Log("UP");
+            Vector3 AxisA = new Vector3(transform.up.x,transform.up.z, transform.up.x);
+            Vector3 AxisB = Vector3.Cross(transform.up, AxisA);
+            int strt = verticies.Count;
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                for (int x = 0; x < BaseResolution; x++)
+                {
+                    int itr = (x + (y * BaseResolution)) + strt;
+                    Vector2 percent = new Vector2(y, x) / (float)(BaseResolution - 1);
+                    Vector3 pointOnUnitCube = transform.up + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
+                    verticies.Add(pointOnUnitSphere);
+                    if (x < BaseResolution - 1 && y < BaseResolution - 1)
+                    {
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+                        triangles.Add(itr + 1);
+                    }
+
+                }
+                yield return new WaitForEndOfFrame();
+
+            }
+            Debug.Log("FACE_COMPLETED");
+            Debug.Log("UP DONE");
+        }
+        if (Vector3.Dot(-transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f)
+        {
+            Debug.Log("DOWN");
+            Vector3 AxisA = new Vector3(-(transform.up).x, -(transform.up).z, -(transform.up).x);
+            Vector3 AxisB = Vector3.Cross(-(transform.up), AxisA);
+            int strt = verticies.Count;
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                for (int x = 0; x < BaseResolution; x++)
+                {
+                    int itr = (x + (y * BaseResolution)) + strt;
+                    Vector2 percent = new Vector2(y, x) / (float)(BaseResolution - 1);
+                    Vector3 pointOnUnitCube = -(transform.up) + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
+                    verticies.Add(pointOnUnitSphere);
+                    if (x < BaseResolution - 1 && y < BaseResolution - 1)
+                    {
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+                        triangles.Add(itr + 1);
+                    }
+
+                }
+                yield return new WaitForEndOfFrame();
+
+            }
+            Debug.Log("FACE_COMPLETED");
+            Debug.Log("DOWN DONE");
+        }
+        if (Vector3.Dot(transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f)
+        {
+            Debug.Log("RIGHT");
+            Vector3 AxisA = new Vector3(transform.right.x, transform.right.z, transform.right.x);
+            Vector3 AxisB = Vector3.Cross(transform.right, AxisA);
+            int strt = verticies.Count;
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                for (int x = 0; x < BaseResolution; x++)
+                {
+                    int itr = (x + (y * BaseResolution)) + strt;
+                    Vector2 percent = new Vector2(y, x) / (float)(BaseResolution - 1);
+                    Vector3 pointOnUnitCube = transform.right + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
+                    verticies.Add(pointOnUnitSphere);
+                    if (x < BaseResolution - 1 && y < BaseResolution - 1)
+                    {
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+                        triangles.Add(itr + 1);
+                    }
+
+                }
+                yield return new WaitForEndOfFrame();
+
+            }
+            Debug.Log("FACE_COMPLETED");
+            Debug.Log("RIGHT DONE");
+        }
+        if (Vector3.Dot(-transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f)
+        {
+            Debug.Log("LEFT");
+            Vector3 AxisA = new Vector3(-(transform.right).x, -(transform.right).z, -(transform.right).x);
+            Vector3 AxisB = Vector3.Cross(-(transform.right), AxisA);
+            int strt = verticies.Count;
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                for (int x = 0; x < BaseResolution; x++)
+                {
+                    int itr = (x + (y * BaseResolution)) + strt;
+                    Vector2 percent = new Vector2(y, x) / (float)(BaseResolution - 1);
+                    Vector3 pointOnUnitCube = -(transform.right) + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
+                    verticies.Add(pointOnUnitSphere);
+                    if (x < BaseResolution - 1 && y < BaseResolution - 1)
+                    {
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+                        triangles.Add(itr + 1);
+                    }
+
+                }
+                yield return new WaitForEndOfFrame();
+
+            }
+            Debug.Log("FACE_COMPLETED");
+            Debug.Log("LEFT DONE");
+        }
+        if (Vector3.Dot(transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f)
+        {
+            Debug.Log("FORWARD");
+            Vector3 AxisA = new Vector3(transform.forward.x, transform.forward.z, transform.forward.x);
+            Vector3 AxisB = Vector3.Cross(transform.forward, AxisA);
+            int strt = verticies.Count;
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                for (int x = 0; x < BaseResolution; x++)
+                {
+                    int itr = (x + (y * BaseResolution)) + strt;
+                    Vector2 percent = new Vector2(y, x) / (float)(BaseResolution - 1);
+                    Vector3 pointOnUnitCube = transform.forward + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
+                    verticies.Add(pointOnUnitSphere);
+                    if (x < BaseResolution - 1 && y < BaseResolution - 1)
+                    {
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+                        triangles.Add(itr + 1);
+                    }
+
+                }
+                yield return new WaitForEndOfFrame();
+
+            }
+            Debug.Log("FACE_COMPLETED");
+            Debug.Log("FORWARD DONE");
+        }
+        if (Vector3.Dot(-transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f)
+        {
+            Debug.Log("BACKWARD");
+            Vector3 AxisA = new Vector3(-(transform.forward).x, -(transform.forward).z, -(transform.forward).x);
+            Vector3 AxisB = Vector3.Cross(-(transform.forward), AxisA);
+            int strt = verticies.Count;
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                for (int x = 0; x < BaseResolution; x++)
+                {
+                    int itr = (x + (y * BaseResolution)) + strt;
+                    Vector2 percent = new Vector2(y, x) / (float)(BaseResolution - 1);
+                    Vector3 pointOnUnitCube = -(transform.forward) + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
+                    verticies.Add(pointOnUnitSphere);
+                    if (x < BaseResolution - 1 && y < BaseResolution - 1)
+                    {
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+                        triangles.Add(itr + 1);
+                    }
+
+                }
+                yield return new WaitForEndOfFrame();
+
+            }
+            Debug.Log("FACE_COMPLETED");
+            Debug.Log("FORWARD DONE");
+        }
+
+        Debug.Log(verticies.Count);
+        colours = new Color[verticies.Count];
+
+        Mesh m = new Mesh();
+
+        m.SetVertices(verticies);
+        m.SetTriangles(triangles, 0);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+
+
+        for (int i = 0; i < verticies.Count; i++)
+        {
+            Vector3 tmp = verticies[i];
+            float newHeight = returnY(tmp);
+
+            verticies[i] += m.normals[i] * newHeight;
+            colours[i] = testTererainGradient.Evaluate(map(newHeight, 0, MaximumTerrainHeight, 0, 1));
+            if (i%100 == 0)
+            {
+                yield return new WaitForEndOfFrame();
+            }
+        }
+
+
+        m.SetVertices(verticies);
+        m.SetColors(colours);
+        m.RecalculateNormals();
+        m.OptimizeReorderVertexBuffer();
+        m.RecalculateBounds();
+
+
+        planetMeshFilter.mesh.Clear();
+        planetMeshFilter.mesh = m;
+
+        Generated = true;
+        yield return null;
+
+    }
+
+
+
+
     // https://forum.unity.com/threads/re-map-a-number-from-one-range-to-another.119437/
     private float map(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
     {
         return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
     }
 
-    void GenerateFace(Vector3 _normal)
+    IEnumerator GenerateFace(Vector3 _normal)
     {
         Vector3 AxisA = new Vector3(_normal.y, _normal.z, _normal.x);
         Vector3 AxisB = Vector3.Cross(_normal, AxisA);
@@ -148,13 +425,15 @@ public class POVPlanetRenderer : MonoBehaviour
                     triangles.Add(itr);
                     triangles.Add(itr + (int)BaseResolution + 1);
                     triangles.Add(itr + 1);
-
                 }
+                
             }
+            //yield return new WaitForEndOfFrame();
+
         }
-
-        
-
+        Debug.Log("FACE_COMPLETED");
+        running = false;
+        yield return null;
     }
 
     float returnY(Vector3 vertex)
@@ -166,11 +445,19 @@ public class POVPlanetRenderer : MonoBehaviour
         float zcoord = vertex.z / (4096) * noiseScale;
 
         rtrn = noise.Evaluate(new Vector3(xcoord, ycoord, zcoord));
-        
+
         rtrn = map(rtrn, -1.0f, 1.0f, 0.0f, MaximumTerrainHeight);
         Debug.Log(rtrn);
         return rtrn;
     }
 
+    IEnumerator WaitUnitlDone()
+    {
+        while(running)
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
+        yield return null; 
+    }
 
 }
