@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Collections;
 
 
 
@@ -53,6 +56,37 @@ public class POVPlanetRenderer : MonoBehaviour
             //StartCoroutine(GenerateMesh());
         }
         
+    }
+
+    IEnumerator MTGenerateMesh()
+    {
+        List<Vector3> facesToBeRendered = new List<Vector3>();
+        if (Vector3.Dot(transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(transform.up); }
+        if (Vector3.Dot(-transform.up, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(-transform.up); }
+        if (Vector3.Dot(transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(transform.right); }
+        if (Vector3.Dot(-transform.right, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(-transform.right); }
+        if (Vector3.Dot(transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(transform.forward); }
+        if (Vector3.Dot(-transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(-transform.forward); }
+
+        var dataarry = new NativeArray<POVPlanetRenderer.MeshData>(facesToBeRendered.Count, Allocator.TempJob);
+        for (int i = 0; i < dataarry.Length; i++)
+        {
+            dataarry[i] = new MeshData(facesToBeRendered[i], BaseResolution, radius);
+        }
+        
+        vertexGenerationJob job = new vertexGenerationJob()
+        {
+            Faces = dataarry
+        };
+        JobHandle handle = job.Schedule(facesToBeRendered.Count, 1);
+        handle.Complete();
+        
+        dataarry.Dispose();
+       
+
+
+
+        yield return null;
     }
 
 
@@ -458,6 +492,79 @@ public class POVPlanetRenderer : MonoBehaviour
             yield return new WaitForSeconds(0.1f);
         }
         yield return null; 
+    }
+
+
+    public struct MeshData
+    {
+        public float3 norm;
+
+        public NativeArray<float3> verts;
+        public NativeArray<int> tris;
+        public NativeArray<Color> clrs;
+        public int res;
+        public float rad;
+        public MeshData(Vector3 _normal, int _res, float _rad)
+        {
+            rad = _rad;
+            res = _res;
+            norm = _normal;
+            verts = new NativeArray<float3>(res * res, Allocator.TempJob);
+            tris = new NativeArray<int>((res - 1) * (res - 1) * 6, Allocator.TempJob);
+            clrs = new NativeArray<Color>(verts.Length, Allocator.TempJob);
+        }
+
+        public void Calculate()
+        {
+            float3 AxisA = new Vector3(norm.y, norm.z, norm.x);
+            float3 AxisB = Vector3.Cross(norm, AxisA);
+            int strt = verts.Length;
+            int trinum = 0;
+            for (int y = 0; y < res; y++)
+            {
+                for (int x = 0; x < res; x++)
+                {
+                    int itr = (x + (y * res)) + strt;
+                    float2 percent = new Vector2(y, x) / (float)(res - 1);
+                    float3 pointOnUnitCube = norm + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    float3 pointOnUnitSphere = (pointOnUnitCube / Mathf.Sqrt(pointOnUnitCube.x * pointOnUnitCube.x + pointOnUnitCube.y * pointOnUnitCube.y + pointOnUnitCube.z * pointOnUnitCube.z )) * rad;
+                    verts[(x * res) + (y * res)] = (pointOnUnitSphere);
+                    if (x < res - 1 && y < res - 1)
+                    {
+                        tris[trinum] = itr;
+                        tris[trinum + 1] = (itr + (int)res);
+                        tris[trinum + 2] = (itr + (int)res + 1);
+
+                        tris[trinum + 3] = (itr);
+                        tris[trinum + 4] = (itr + (int)res + 1);
+                        tris[trinum + 5] = (itr + 1);
+
+                        trinum += 6;
+
+                        // add the counter
+                    }
+
+                }
+            }
+
+            verts.Dispose();
+            tris.Dispose();
+            clrs.Dispose();
+        }
+    }
+
+
+}
+
+public struct vertexGenerationJob : IJobParallelFor
+{
+    public NativeArray<POVPlanetRenderer.MeshData> Faces;
+
+    public void Execute(int _index)
+    {
+        POVPlanetRenderer.MeshData data = Faces[_index];
+        data.Calculate();
+        Faces[_index] = data;
     }
 
 }
