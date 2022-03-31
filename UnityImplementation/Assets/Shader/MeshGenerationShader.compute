@@ -11,10 +11,17 @@ struct PlanetData
     int numNormals;
 };
 
+struct vec3
+{
+    float x;
+    float y;
+    float z;
+};
+
 
 RWStructuredBuffer<PlanetData> Data;
-RWStructuredBuffer<float4> Normals;
-RWStructuredBuffer<float4> Verticies;
+RWStructuredBuffer<vec3> Normals;
+RWStructuredBuffer<float3> Verticies;
 RWStructuredBuffer<int> Triangles;
 
 
@@ -22,15 +29,17 @@ RWStructuredBuffer<int> Triangles;
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
+    int numVerts = 0;
+    int vertIndex = 0;
+    int numTris = 0;
     // TODO: insert actual code here!
     for (int i = 0; i < Data[0].numNormals; i++)
     {
-        float3 AxisA = float3(Normals[i].y,Normals[i].z ,Normals[i].x);
-        float3 AxisB = cross(Normals[i], AxisA);
+        float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
+        float3 AxisA = float3(normal.y, normal.z, normal.x);
+        float3 AxisB = cross(normal, AxisA);
 
-        int numVerts = 0;
-        int vertIndex = 0;
-        int numTris = 0;
+        
         for (int y = 0; y < Data[0].resolution; y++)
         {
             for (int x = 0; x < Data[0].resolution; x++)
@@ -39,23 +48,29 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                 
                 float2 percent = float2(y,x) / (Data[0].resolution - 1);
 
-                float3 pointOnUnitCube = Normals[i] + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
                 float3 pointOnUnitSphere = normalize(pointOnUnitCube) * Data[0].radius;
 
                 Verticies[vertIndex] = pointOnUnitSphere;
                 vertIndex++;
+                
 
-                if (x < Data[0].resolution -1 && y < Data[0].resolution -1)
+                if (x < Data[0].resolution -1)
                 {
-                    Triangles[numTris] = itr;
-                    Triangles[numTris + 1] = itr + Data[0].resolution;
-                    Triangles[numTris + 2] = itr + Data[0].resolution + 1;
-                    Triangles[numTris + 3] = itr;
-                    Triangles[numTris + 2] = itr + Data[0].resolution + 1;
-                    Triangles[numTris + 1] = itr + Data[0].resolution;
+                    if (y < Data[0].resolution -1)
+                    {
+                        Triangles[numTris] = itr;
+                        Triangles[numTris + 1] = itr + Data[0].resolution;
+                        Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+                        Triangles[numTris + 3] = itr;
+                        Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+                        Triangles[numTris + 5] = itr + Data[0].resolution;
+                        numTris+=6;
+                    }
                 }
             }   
         }
+        numVerts+= Data[0].resolution * Data[0].resolution;
 
     }       
         
