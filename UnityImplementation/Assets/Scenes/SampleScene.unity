@@ -179,9 +179,17 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: data
+      value: 
+      objectReference: {fileID: 11400000, guid: 1ec7adff38e9d9445a6a3759b3d209d1, type: 2}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: Radius
       value: 100
       objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: mainCamera
+      value: 
+      objectReference: {fileID: 963194227}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: BaseResolution
       value: 100
@@ -418,7 +426,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 1
   m_VolumeTrigger: {fileID: 0}
-  m_RenderPostProcessing: 0
+  m_RenderPostProcessing: 1
   m_Antialiasing: 0
   m_AntialiasingQuality: 2
   m_StopNaN: 0

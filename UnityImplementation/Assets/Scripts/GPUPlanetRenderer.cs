@@ -1,6 +1,9 @@
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 [RequireComponent(typeof(MeshFilter))]
 public class GPUPlanetRenderer : MonoBehaviour 
@@ -18,6 +21,13 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     public float WaterLevel;
     public Gradient TestTererainGradient;
+
+    public bool AtmosphereEnabled;
+    public Atmosphere atmosphere;
+    [SerializeField]
+    public ForwardRendererData data;
+    public AtmosphereSettings atmosSettings;
+    public Camera mainCamera;
 
     private CameraScript cam;
     private MeshFilter planetMeshFilter;
@@ -71,13 +81,17 @@ public class GPUPlanetRenderer : MonoBehaviour
     void Start()
     {
         PlanetDataSize = sizeof(float) + (2 * (sizeof(int)));
-
         cam = GameObject.FindObjectOfType<CameraScript>();
         if (cam == null)
         {
             throw new System.Exception();
         }
 
+        mainCamera = Camera.main;
+        AtmosphereEnabled = true;
+        atmosphere = new Atmosphere();
+        atmosphere.featureName = "NewBlitMaterialFeature";
+        atmosphere.rendererData = data;
         MeshUpdate = false;
         filter = GetComponent<MeshFilter>();
         StartCoroutine(GenerateVerticies());
@@ -92,6 +106,11 @@ public class GPUPlanetRenderer : MonoBehaviour
             filter.mesh = TerrainMesh;
             MeshUpdate = false;
         }
+        if (AtmosphereEnabled)
+        {
+            atmosphere.updateMaterial(this);
+        }
+
     }
 
     IEnumerator GenerateVerticies()
@@ -111,8 +130,6 @@ public class GPUPlanetRenderer : MonoBehaviour
             pd[0].numNormals = facesToBeRendered.Count;
             pd[0].radius = Radius;
             pd[0].resolution = BaseResolution;
-
-            Debug.Log(pd[0].toString());
 
             var planetDataBuffer = new ComputeBuffer(1, PlanetDataSize);
             planetDataBuffer.SetData(pd);
@@ -162,4 +179,42 @@ public class GPUPlanetRenderer : MonoBehaviour
 
         yield return null;
     }
+
+ 
+
 }
+
+//https://github.com/NedMakesGames/RendererFeatureBlitMat/blob/master/Assets/Rendering/Desaturate/BlitMaterialFeature.cs
+public class Atmosphere
+{
+    [SerializeField] public ForwardRendererData rendererData = null;
+    [SerializeField] public string featureName = null;
+
+    private ScriptableRendererFeature feature;
+    private bool TryGetFeature()
+    {
+        feature = rendererData.rendererFeatures.Where((f) => f.name == featureName).FirstOrDefault();
+        if (feature == null) 
+        { 
+            Debug.Log("NULL"); return false; 
+        }
+        return true;;
+    }
+
+    public void updateMaterial(GPUPlanetRenderer renderer)
+    {
+        bool test = TryGetFeature();
+        if (test)
+        {
+            var bmf = feature as BlitMaterialFeature;
+            var mat = bmf.Material;
+            renderer.atmosSettings.SetProperties(mat, renderer.Radius);
+        }
+    }
+
+
+
+}
+
+
+

@@ -3,7 +3,10 @@ guid: 3181109c4ecc5774f9b3749765bc6332
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - atmosphereShader: {fileID: 4800000, guid: 4e1c684ef1fd64a4286c4e895a01a64d, type: 3}
+  - opticalDepthCompute: {fileID: 7200000, guid: 6ab044ae6c1397f449e9d68868a40c9f, type: 3}
+  - blueNoise: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

@@ -36,16 +36,7 @@ public class AtmosphereSettings : ScriptableObject {
 	bool settingsUpToDate;
 
 	public void SetProperties (Material material, float bodyRadius) {
-		/*
-		if (Application.isPlaying) {
-			if (Time.time > 1) {
-				timeOfDay += Time.deltaTime * 0.1f;
-					var sun = GameObject.Find ("Test Sun");
-			sun.transform.position = new Vector3 (Mathf.Cos (timeOfDay), Mathf.Sin (timeOfDay), 0) * sunDst;
-			sun.transform.LookAt (Vector3.zero);
-			}
-		}
-		*/
+		
 		if (!settingsUpToDate || !Application.isPlaying) {
 			var sun = GameObject.Find ("Test Sun");
 			if (sun) {
