@@ -1,0 +1,31 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+#include "SimplexNoise3.cginc"
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+struct vec3
+{
+    float x;
+    float y;
+    float z;
+};
+
+RWStructuredBuffer<vec3> Verticies;
+RWStructuredBuffer<vec3> Normals;
+int vertCount;
+
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    for (int i = 0; i < vertCount; i++)
+    {
+        float4 tmp = float4(Verticies[i].x, Verticies[i].y, Verticies[i].z, 1);
+        float noiseVal = snoise(tmp);
+        Verticies[i] += Normals[i] * noiseVal;
+    }
+
+}

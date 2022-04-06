@@ -5,30 +5,32 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-/*public class AtmosphereSettings : ScriptableObject
+//https://github.com/NedMakesGames/RendererFeatureBlitMat/blob/master/Assets/Rendering/Desaturate/BlitMaterialFeature.cs
+public class Atmosphere
 {
-    public Shader atmosphereShader;
-    public int InScatteringPoints = 10;
-    public int OpticalDepthPoints = 10;
-    public float DensityFalloff = 4;
-    public float AtmosphereScale = 1;
-    public Vector3 WaveLengths = new Vector3(700, 530, 440);
-    public float ScatteringStrength = 1;
+    [SerializeField] public ForwardRendererData rendererData = null;
+    [SerializeField] public string featureName = null;
 
-    public void SetProperties(Material m, float bodyRadius)
+    private ScriptableRendererFeature feature;
+    private bool TryGetFeature()
     {
-        float scatterR = Mathf.Pow(400 / wavelengths.x, 4) * ScatteringStrength;
-        float scatterG = Mathf.Pow(400 / wavelengths.y, 4) * ScatteringStrength;
-        float scatterB = Mathf.Pow(400 / wavelengths.z, 4) * ScatteringStrength;
-
-        Vector3 ScatteringCoefficant = new Vector3(scatterR, scatterB, scatterG);
-
-        m.SetVector("scatteringCoefficients", ScatteringCoefficant);
-        m.SetInt("numInScatteringPoints", InScatteringPoints);
-        m.SetInt("numOpticalDepthPoints", OpticalDepthPoints);
-        m.SetFloat("atmosphereRadius", (1 + atmosphereScale) * bodyRadius);
-        m.SetFloat("planetRadius", bodyRadius);
-        m.SetFloat("densityFalloff", DensityFalloff);
-
+        feature = rendererData.rendererFeatures.Where((f) => f.name == featureName).FirstOrDefault();
+        if (feature == null)
+        {
+            Debug.Log("NULL"); return false;
+        }
+        return true; ;
     }
-}*/
+
+    public void updateMaterial(GPUPlanetRenderer renderer)
+    {
+        bool test = TryGetFeature();
+        if (test)
+        {
+            var bmf = feature as BlitMaterialFeature;
+            var mat = bmf.Material;
+            renderer.atmosSettings.SetProperties(mat, renderer.Radius, renderer.transform.position);
+        }
+    }
+
+}

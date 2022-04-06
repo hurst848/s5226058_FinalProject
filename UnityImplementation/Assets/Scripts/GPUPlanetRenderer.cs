@@ -80,6 +80,7 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     void Start()
     {
+        GalacticPosition = new DVec3(transform.position);
         PlanetDataSize = sizeof(float) + (2 * (sizeof(int)));
         cam = GameObject.FindObjectOfType<CameraScript>();
         if (cam == null)
@@ -145,6 +146,7 @@ public class GPUPlanetRenderer : MonoBehaviour
             var triangleDataBuffer = new ComputeBuffer(((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count, sizeof(int));
             vertexGenerationShader.SetBuffer(0, "Triangles", triangleDataBuffer);
 
+            vertexGenerationShader.SetVector("cameraPosition", cam.transform.position);
 
             int ki = vertexGenerationShader.FindKernel("CSMain");
             vertexGenerationShader.Dispatch(ki, 8, 8, 1);
@@ -179,42 +181,17 @@ public class GPUPlanetRenderer : MonoBehaviour
 
         yield return null;
     }
-
- 
-
-}
-
-//https://github.com/NedMakesGames/RendererFeatureBlitMat/blob/master/Assets/Rendering/Desaturate/BlitMaterialFeature.cs
-public class Atmosphere
-{
-    [SerializeField] public ForwardRendererData rendererData = null;
-    [SerializeField] public string featureName = null;
-
-    private ScriptableRendererFeature feature;
-    private bool TryGetFeature()
+    public void MovePlanet(Vector3 _inp)
     {
-        feature = rendererData.rendererFeatures.Where((f) => f.name == featureName).FirstOrDefault();
-        if (feature == null) 
-        { 
-            Debug.Log("NULL"); return false; 
-        }
-        return true;;
-    }
-
-    public void updateMaterial(GPUPlanetRenderer renderer)
-    {
-        bool test = TryGetFeature();
-        if (test)
-        {
-            var bmf = feature as BlitMaterialFeature;
-            var mat = bmf.Material;
-            renderer.atmosSettings.SetProperties(mat, renderer.Radius);
-        }
+        transform.position += _inp;
+        GalacticPosition += _inp;
     }
 
 
 
 }
+
+
 
 
 

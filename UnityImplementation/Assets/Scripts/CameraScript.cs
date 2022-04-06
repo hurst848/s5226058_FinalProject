@@ -9,13 +9,13 @@ public class CameraScript : MonoBehaviour
    
     public DVec3 GalacticPosition;
 
-    PlanetScript[] planets;
+    GPUPlanetRenderer[] planets;
 
     // Start is called before the first frame update
     void Start()
     {
         GalacticPosition = new DVec3(transform.position);
-        planets = GameObject.FindObjectsOfType<PlanetScript>();
+        planets = GameObject.FindObjectsOfType<GPUPlanetRenderer>();
         Debug.Log(planets.Length);
     }
 

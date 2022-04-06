@@ -35,7 +35,7 @@ public class AtmosphereSettings : ScriptableObject {
 	RenderTexture opticalDepthTexture;
 	bool settingsUpToDate;
 
-	public void SetProperties (Material material, float bodyRadius) {
+	public void SetProperties (Material material, float bodyRadius, Vector3 planetPosition) {
 		
 		if (!settingsUpToDate || !Application.isPlaying) {
 			var sun = GameObject.Find ("Test Sun");
@@ -51,6 +51,7 @@ public class AtmosphereSettings : ScriptableObject {
 			material.SetInt ("numOpticalDepthPoints", opticalDepthPoints);
 			material.SetFloat ("atmosphereRadius", atmosphereRadius);
 			material.SetFloat ("planetRadius", bodyRadius);
+			material.SetVector("planetCentre", planetPosition);
 			material.SetFloat ("densityFalloff", densityFalloff);
 
 			// Strength of (rayleigh) scattering is inversely proportional to wavelength^4
