@@ -1,7 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
-#include "SimplexNoise3.cginc"
+#include "SimplexNoise.cginc"
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 
@@ -12,10 +12,29 @@ struct vec3
     float z;
 };
 
+float map(float _value, float _fromA, float _toA, float _fromB, float _toB)
+{
+    float rtrn = 0.0;
+
+    rtrn = (_value - _fromA) / (_toA - _fromA) * (_toB - _fromB) + _fromB;
+
+    return rtrn;
+}
+
+vec3 toVec3(float3 _inp)
+{
+    vec3 rtrn;
+    rtrn.x = _inp.x;
+    rtrn.y = _inp.y;
+    rtrn.z = _inp.z;
+    return rtrn;
+}
+
 RWStructuredBuffer<vec3> Verticies;
 RWStructuredBuffer<vec3> Normals;
 int vertCount;
-
+float Radius;
+float MaxTerrainHeight;
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -23,9 +42,15 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     // TODO: insert actual code here!
     for (int i = 0; i < vertCount; i++)
     {
-        float4 tmp = float4(Verticies[i].x, Verticies[i].y, Verticies[i].z, 1);
-        float noiseVal = snoise(tmp);
-        Verticies[i] += Normals[i] * noiseVal;
-    }
+        
+        float3 tmp = float3(Verticies[i].x, Verticies[i].y, Verticies[i].z);
+        float3 tmpNrml = float3(Normals[i].x, Normals[i].y, Normals[i].z);
+        float noiseVal = map(snoise(tmp),0.0, 1.0, Radius, Radius + MaxTerrainHeight);
+        float3 newVert = float3(tmpNrml.x * noiseVal, tmpNrml.y * noiseVal, tmpNrml.z * noiseVal);
+        Verticies[i] = toVec3(newVert);
 
+    }
 }
+
+
+

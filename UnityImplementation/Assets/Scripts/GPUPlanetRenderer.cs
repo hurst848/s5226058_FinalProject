@@ -8,12 +8,24 @@ using UnityEngine.Rendering.Universal;
 [RequireComponent(typeof(MeshFilter))]
 public class GPUPlanetRenderer : MonoBehaviour 
 {
+    // Size of Moon //
+    /*
+     * 1e+07
+     * 1737400
+     * 
+     */
+
+
+
     // Start is called before the first frame update
     [SerializeField]
     public DVec3 GalacticPosition;
 
+    [Header("Shaders")]
     public ComputeShader vertexGenerationShader;
+    public ComputeShader terrainGenerationShader;
 
+    [Header("Generation Settings")]
     public int Radius;
     public int BaseResolution = 100;
     public float NoiseScale = 1000;
@@ -22,6 +34,7 @@ public class GPUPlanetRenderer : MonoBehaviour
     public float WaterLevel;
     public Gradient TestTererainGradient;
 
+    [Header("Atmosphere Settings")]
     public bool AtmosphereEnabled;
     public Atmosphere atmosphere;
     [SerializeField]
@@ -54,7 +67,7 @@ public class GPUPlanetRenderer : MonoBehaviour
             return rtrn;
         }
     };
-    struct vec3
+    public struct vec3
     {
         public static vec3 toVec3(Vector3 _vec)
         {
@@ -125,12 +138,14 @@ public class GPUPlanetRenderer : MonoBehaviour
         if (Vector3.Dot(transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(vec3.toVec3(transform.forward)); renderChance += 10000; }
         if (Vector3.Dot(-transform.forward, (transform.position - cam.transform.position).normalized) <= 0.25f) { facesToBeRendered.Add(vec3.toVec3(-transform.forward)); renderChance += 100000; }
         if (renderChance != renderNumber)
-        {
+        {            
             renderNumber = renderChance;
             PlanetData[] pd = new PlanetData[1];
             pd[0].numNormals = facesToBeRendered.Count;
             pd[0].radius = Radius;
             pd[0].resolution = BaseResolution;
+
+            CameraViewFructrum cvf = new CameraViewFructrum(mainCamera);
 
             var planetDataBuffer = new ComputeBuffer(1, PlanetDataSize);
             planetDataBuffer.SetData(pd);
@@ -147,6 +162,11 @@ public class GPUPlanetRenderer : MonoBehaviour
             vertexGenerationShader.SetBuffer(0, "Triangles", triangleDataBuffer);
 
             vertexGenerationShader.SetVector("cameraPosition", cam.transform.position);
+
+            vertexGenerationShader.SetVector("CamRight", cvf.Right);
+            vertexGenerationShader.SetVector("CamLeft", cvf.Left);
+            vertexGenerationShader.SetVector("CamUp", cvf.Up);
+            vertexGenerationShader.SetVector("CamDown", cvf.Down);
 
             int ki = vertexGenerationShader.FindKernel("CSMain");
             vertexGenerationShader.Dispatch(ki, 8, 8, 1);
@@ -166,17 +186,52 @@ public class GPUPlanetRenderer : MonoBehaviour
             TerrainMesh.RecalculateNormals();
             TerrainMesh.RecalculateBounds();
 
-
-            MeshUpdate = true;
-
             planetDataBuffer.Dispose();
             normalDataBuffer.Dispose();
             vertexDataBuffer.Dispose();
             triangleDataBuffer.Dispose();
+
+            yield return new WaitForEndOfFrame();
+
+            // Add Noise and Terrain Features
+
+            /*var terrainVertexDataBuffer = new ComputeBuffer(TerrainMesh.vertices.Length, 3 * sizeof(float));
+            vec3[] vertData = new vec3[TerrainMesh.vertices.Length];
+            var terrainNormalDataBuffer = new ComputeBuffer(TerrainMesh.normals.Length, 3 * sizeof(float));
+            vec3[] normData = new vec3[TerrainMesh.normals.Length];
+
+            for (int i = 0; i < normData.Length; i++)
+            {
+                vertData[i] = vec3.toVec3(TerrainMesh.vertices[i]);
+                normData[i] = vec3.toVec3(TerrainMesh.normals[i]);
+            }
+
+            terrainGenerationShader.SetBuffer(0, "Verticies", terrainVertexDataBuffer);
+            terrainGenerationShader.SetBuffer(0, "Normals", terrainNormalDataBuffer);
+
+            terrainGenerationShader.SetInt("vertCount", vertData.Length);
+            terrainGenerationShader.SetFloat("Radius", Radius);
+            terrainGenerationShader.SetFloat("MaxTerrainHeight", MaximumTerrainHeight);
+
+            ki = terrainGenerationShader.FindKernel("CSMain");
+            terrainGenerationShader.Dispatch(ki, 8, 8, 1);
+
+            verticies = new Vector3[TerrainMesh.vertices.Length];
+            terrainVertexDataBuffer.GetData(verticies);
+
+            TerrainMesh.SetVertices(verticies);
+            TerrainMesh.SetTriangles(triangles, 0);
+            TerrainMesh.RecalculateNormals();
+            TerrainMesh.RecalculateBounds();
+
+            terrainNormalDataBuffer.Dispose();
+            terrainVertexDataBuffer.Dispose();*/
+
+            MeshUpdate = true;
         }
 
 
-       
+
 
 
         yield return null;

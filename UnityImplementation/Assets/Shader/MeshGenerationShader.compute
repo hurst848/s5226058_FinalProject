@@ -1,8 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
-#include "SimplexNoise3.cginc"
-
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 
@@ -22,10 +20,16 @@ struct vec3
 
 
 
+
 RWStructuredBuffer<PlanetData> Data;
 RWStructuredBuffer<vec3> Normals;
 RWStructuredBuffer<float3> Verticies;
 RWStructuredBuffer<int> Triangles;
+
+float3 CamRight;
+float3 CamLeft;
+float3 CamUp;
+float3 CamDown;
 
 float3 cameraPosition;
 
@@ -53,6 +57,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
                 float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
                 float3 pointOnUnitSphere = normalize(pointOnUnitCube) * Data[0].radius;
+                
 
                 Verticies[vertIndex] = pointOnUnitSphere;
                 vertIndex++;

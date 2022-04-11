@@ -48,3 +48,16 @@ public class CameraScript : MonoBehaviour
         GalacticPosition += _move;
     }
 }
+
+public struct CameraViewFructrum
+{
+    public CameraViewFructrum(Camera c)
+    {
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(c);
+        Left = planes[0].normal;    Right = planes[1].normal;
+        Up = planes[3].normal;      Down = planes[2].normal;
+    }
+
+    public Vector3 Left, Right, Up, Down;
+
+}
