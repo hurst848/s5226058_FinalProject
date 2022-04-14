@@ -32,41 +32,38 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     int numTris = 0;
     // TODO: insert actual code here!
     float3 normal = float3(NormalGP.x, NormalGP.y, NormalGP.z);
-        float3 AxisA = float3(normal.y, normal.z, normal.x);
-        float3 AxisB = cross(normal, AxisA);
+    float3 AxisA = float3(normal.y, normal.z, normal.x);
+    float3 AxisB = cross(normal, AxisA);
 
         
-        for (int y = 0; y < Resolution; y++)
+    for (int y = 0; y < Resolution; y++)
+    {
+        for (int x = 0; x < Resolution; x++)
         {
-            for (int x = 0; x < Resolution; x++)
+            int itr = (x + (y * Resolution));
+               
+            float2 percent = float2(y,x) / (Resolution - 1);
+
+            float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+            float3 pointOnUnitSphere = normalize(pointOnUnitCube) * Radius;
+                
+            Verticies[vertIndex] = pointOnUnitSphere;
+            UVs[vertIndex] = float2((float)x / (float)Resolution, (float)y / (float)Resolution);
+            vertIndex++;
+                
+            if (x < Resolution -1)
             {
-                int itr = (x + (y * Resolution));
-                
-                float2 percent = float2(y,x) / (Resolution - 1);
-
-                float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
-                float3 pointOnUnitSphere = normalize(pointOnUnitCube) * Radius;
-                
-
-                Verticies[vertIndex] = pointOnUnitSphere;
-                UVs[vertIndex] = float2((float)x / (float)Resolution, (float)y / (float)Resolution);
-                vertIndex++;
-                
-                
-
-                if (x < Resolution -1)
+                if (y < Resolution -1)
                 {
-                    if (y < Resolution -1)
-                    {
-                        Triangles[numTris] = itr;
-                        Triangles[numTris + 1] = itr + Resolution;
-                        Triangles[numTris + 2] = itr + Resolution + 1;
-                        Triangles[numTris + 3] = itr;
-                        Triangles[numTris + 4] = itr + Resolution + 1;
-                        Triangles[numTris + 5] = itr + 1;
-                        numTris+=6;
-                    }
+                    Triangles[numTris] = itr;
+                    Triangles[numTris + 1] = itr + Resolution;
+                    Triangles[numTris + 2] = itr + Resolution + 1;
+                    Triangles[numTris + 3] = itr;
+                    Triangles[numTris + 4] = itr + Resolution + 1;
+                    Triangles[numTris + 5] = itr + 1;
+                    numTris+=6;
                 }
-            }   
-        }
+            }
+        }   
+    }
 }

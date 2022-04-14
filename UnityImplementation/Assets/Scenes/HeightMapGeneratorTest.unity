@@ -156,6 +156,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   planeRenderer: {fileID: 430392062}
+  shader: {fileID: 7200000, guid: 3bc1d0273ded57743a921178ddf318a4, type: 3}
   LevelOfDetail: 81
   LevelsOfDetail: 1
   offset: 0

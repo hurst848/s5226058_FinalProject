@@ -41,7 +41,8 @@ public class PlaneHeightMapGeneration : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        GenerateLODMesh();
+        //GenerateLODMesh();
+        GenerateLODMeshGPU();
     }
 
     private void OnValidate()
@@ -131,11 +132,52 @@ public class PlaneHeightMapGeneration : MonoBehaviour
 
     public void GenerateLODMeshGPU()
     {
-        var vertexBufferData = new ComputeBuffer(10*10, 3 * sizeof(float));
-        normalDataBuffer.SetData(facesToBeRendered);
-        vertexGenerationShader.SetBuffer(0, "Normals", normalDataBuffer);
-    }
+        var vertexBufferData = new ComputeBuffer(100, 3 * sizeof(float));
+        shader.SetBuffer(0, "Verticies", vertexBufferData);
 
+        var uvBufferData = new ComputeBuffer(100, 2 * sizeof(float));
+        shader.SetBuffer(0, "UVs", uvBufferData);
+
+        var triangleBufferData = new ComputeBuffer(486, sizeof(int));
+        shader.SetBuffer(0, "Triangles", triangleBufferData);
+        
+        Vector3 tmp = new Vector3();
+        tmp = -(transform.position - Camera.main.transform.position).normalized;
+        
+        shader.SetVector("NormalGP", tmp); //(transform.position - Camera.main.transform.position).normalized);
+        shader.SetFloat("NFFP", 0.5f);
+        shader.SetFloat("Radius", 100.0f);
+        shader.SetInt("Resolution", 10);
+
+        int ki = shader.FindKernel("CSMain");
+        shader.Dispatch(ki, 8, 8, 1);
+
+        Vector3[] verticies = new Vector3[100];
+        vertexBufferData.GetData(verticies);
+
+        Vector2[] uvs = new Vector2[100];
+        uvBufferData.GetData(uvs);
+
+        int[] triangles = new int[486];
+        triangleBufferData.GetData(triangles);
+
+        Mesh m = new Mesh();
+        m.SetVertices(verticies);
+        m.SetTriangles(triangles, 0);
+        m.SetUVs(0, uvs);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        filter.mesh = m;
+
+        vertexBufferData.Release();
+        vertexBufferData.Dispose();
+        uvBufferData.Release();
+        uvBufferData.Dispose();
+        triangleBufferData.Release();
+        triangleBufferData.Dispose();
+
+    }
+    
     // https://forum.unity.com/threads/re-map-a-number-from-one-range-to-another.119437/
     private float map(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
     {

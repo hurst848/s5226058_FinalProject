@@ -26,10 +26,6 @@ RWStructuredBuffer<vec3> Normals;
 RWStructuredBuffer<float3> Verticies;
 RWStructuredBuffer<int> Triangles;
 
-float3 CamRight;
-float3 CamLeft;
-float3 CamUp;
-float3 CamDown;
 
 float3 cameraPosition;
 
