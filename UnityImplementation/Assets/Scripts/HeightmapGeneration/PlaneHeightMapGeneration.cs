@@ -6,12 +6,17 @@ using UnityEngine;
 public class PlaneHeightMapGeneration : MonoBehaviour
 {
     public MeshRenderer planeRenderer;
+    private MeshFilter filter;
     private Noise noise;
     private FractalNoise fnoise;
     private PerlinFractalNoise pfNoise;
 
+    public ComputeShader shader;
+
     [Header("Levels of Detail"), Range(0, 100)]
     public int LevelOfDetail = 1;
+    [Range(1, 10)]
+    public int LevelsOfDetail = 1;
 
     [Header("Noise Settings")]
     public float offset = 0.0f;
@@ -23,12 +28,20 @@ public class PlaneHeightMapGeneration : MonoBehaviour
         fnoise = new FractalNoise();
         pfNoise = new PerlinFractalNoise();
         noise = new Noise();// Random.Range(int.MinValue, int.MaxValue) - Time.frameCount);
+        filter = transform.GetComponent<MeshFilter>();
+
+        GenerateLODMesh();
+
+        int lodMappedVal = (int)map(LevelOfDetail, 0, 100, 10, 1024);
+        Texture2D heightmapTexture = GenerateTexture(lodMappedVal);
+        heightmapTexture.filterMode = FilterMode.Point;
+        planeRenderer.material.mainTexture = heightmapTexture;
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        GenerateLODMesh();
     }
 
     private void OnValidate()
@@ -61,6 +74,67 @@ public class PlaneHeightMapGeneration : MonoBehaviour
         return texture;
     }
 
+
+    public void GenerateLODMesh()
+    {
+        float BaseResolution = 10;
+        float radius = 10.0f;
+        Vector3 _normal = new Vector3(0, 1, 0);
+        List<Vector3> verticies = new List<Vector3>();
+        List<int> triangles = new List<int>();
+        List<Vector2> _uvs = new List<Vector2>();
+        Vector3 AxisA = new Vector3(_normal.y, _normal.z, _normal.x);
+        Vector3 AxisB = Vector3.Cross(_normal, AxisA);
+
+
+
+        for (int i = 0; i < LevelsOfDetail; i++)
+        {
+            float increment = 1.0f / (BaseResolution);// + (BaseResolution * (2 * i)));
+            for (int y = 0; y < BaseResolution; y++)
+            {
+                for (int x = 0; x < BaseResolution; x++)
+                {
+
+                    int itr = x + (y * (int)BaseResolution);
+                    Vector2 percent = new Vector2(y, x) / (BaseResolution - 1);
+                    Vector3 pointOnUnitCube = _normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
+                    verticies.Add(pointOnUnitSphere);
+                    _uvs.Add(new Vector2(map(x, 0, BaseResolution, 0, 1), map(y, 0, BaseResolution, 0,1)));
+                    if (x < BaseResolution - 1 && y < BaseResolution - 1)
+                    {
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+
+
+                        triangles.Add(itr);
+                        triangles.Add(itr + (int)BaseResolution + 1);
+                        triangles.Add(itr + 1);
+
+                    }
+                }
+            }
+
+            Mesh m = new Mesh();
+            m.SetVertices(verticies);
+            m.SetTriangles(triangles, 0);
+            m.SetUVs(0, _uvs);
+            m.RecalculateNormals();
+            m.RecalculateBounds();
+
+
+            filter.mesh = m;
+        }
+    }
+
+    public void GenerateLODMeshGPU()
+    {
+        var vertexBufferData = new ComputeBuffer(10*10, 3 * sizeof(float));
+        normalDataBuffer.SetData(facesToBeRendered);
+        vertexGenerationShader.SetBuffer(0, "Normals", normalDataBuffer);
+    }
 
     // https://forum.unity.com/threads/re-map-a-number-from-one-range-to-another.119437/
     private float map(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
