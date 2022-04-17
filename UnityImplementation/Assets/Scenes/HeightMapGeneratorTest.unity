@@ -157,6 +157,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   planeRenderer: {fileID: 430392062}
   shader: {fileID: 7200000, guid: 3bc1d0273ded57743a921178ddf318a4, type: 3}
+  radius: 100
   LevelOfDetail: 81
   LevelsOfDetail: 1
   offset: 0
@@ -291,8 +292,8 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
-  field of view: 60
+  far clip plane: 4282.99
+  field of view: 105.7
   orthographic: 0
   orthographic size: 5
   m_Depth: -1

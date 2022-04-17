@@ -13,6 +13,9 @@ public class PlaneHeightMapGeneration : MonoBehaviour
 
     public ComputeShader shader;
 
+    [Header("Generation Values")]
+    public float radius;
+
     [Header("Levels of Detail"), Range(0, 100)]
     public int LevelOfDetail = 1;
     [Range(1, 10)]
@@ -43,6 +46,11 @@ public class PlaneHeightMapGeneration : MonoBehaviour
     {
         //GenerateLODMesh();
         GenerateLODMeshGPU();
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            Vector3 nmrl = -(transform.position - Camera.main.transform.position).normalized; 
+            Debug.Log(nmrl);
+        }
     }
 
     private void OnValidate()
@@ -56,7 +64,7 @@ public class PlaneHeightMapGeneration : MonoBehaviour
 
     Texture2D GenerateTexture(int size)
     {
-        fnoise.Octaves = octaves;
+        //fnoise.Octaves = octaves;
 
         Texture2D texture = new Texture2D(size, size);
         float pixColour = 0.0f;
@@ -132,33 +140,38 @@ public class PlaneHeightMapGeneration : MonoBehaviour
 
     public void GenerateLODMeshGPU()
     {
-        var vertexBufferData = new ComputeBuffer(100, 3 * sizeof(float));
+        int resolution = 100;
+        
+
+        var vertexBufferData = new ComputeBuffer(resolution * resolution, 3 * sizeof(float));
         shader.SetBuffer(0, "Verticies", vertexBufferData);
 
-        var uvBufferData = new ComputeBuffer(100, 2 * sizeof(float));
+        var uvBufferData = new ComputeBuffer(resolution * resolution, 2 * sizeof(float));
         shader.SetBuffer(0, "UVs", uvBufferData);
 
-        var triangleBufferData = new ComputeBuffer(486, sizeof(int));
+        var triangleBufferData = new ComputeBuffer((resolution - 1) * (resolution - 1) * 6, sizeof(int));
         shader.SetBuffer(0, "Triangles", triangleBufferData);
         
         Vector3 tmp = new Vector3();
-        tmp = -(transform.position - Camera.main.transform.position).normalized;
-        
+        tmp = (Camera.main.transform.position - ((Camera.main.transform.position - transform.position).normalized * radius)).normalized;
+
+
         shader.SetVector("NormalGP", tmp); //(transform.position - Camera.main.transform.position).normalized);
+        shader.SetVector("CameraPosition", Camera.main.transform.position);
         shader.SetFloat("NFFP", 0.5f);
-        shader.SetFloat("Radius", 100.0f);
-        shader.SetInt("Resolution", 10);
+        shader.SetFloat("Radius", radius);
+        shader.SetInt("Resolution", resolution);
 
         int ki = shader.FindKernel("CSMain");
         shader.Dispatch(ki, 8, 8, 1);
 
-        Vector3[] verticies = new Vector3[100];
+        Vector3[] verticies = new Vector3[resolution * resolution];
         vertexBufferData.GetData(verticies);
 
-        Vector2[] uvs = new Vector2[100];
+        Vector2[] uvs = new Vector2[resolution * resolution];
         uvBufferData.GetData(uvs);
 
-        int[] triangles = new int[486];
+        int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
         triangleBufferData.GetData(triangles);
 
         Mesh m = new Mesh();
@@ -168,6 +181,7 @@ public class PlaneHeightMapGeneration : MonoBehaviour
         m.RecalculateNormals();
         m.RecalculateBounds();
         filter.mesh = m;
+        
 
         vertexBufferData.Release();
         vertexBufferData.Dispose();

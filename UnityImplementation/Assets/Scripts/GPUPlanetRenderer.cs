@@ -114,7 +114,7 @@ public class GPUPlanetRenderer : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        StartCoroutine(GenerateVerticies());
+        StartCoroutine(GenerateVerticiesLOD());
         if (MeshUpdate)
         {
             filter.mesh = TerrainMesh;
@@ -236,6 +236,72 @@ public class GPUPlanetRenderer : MonoBehaviour
 
         yield return null;
     }
+
+    IEnumerator GenerateVerticiesLOD()
+    {
+        PlanetData[] pd = new PlanetData[1];
+        pd[0].radius = Radius;
+        pd[0].resolution = BaseResolution;
+
+        List<vec3> facesToBeRendered = new List<vec3>();
+        Vector3 tmpl = -(transform.position - Camera.main.transform.position).normalized;
+        facesToBeRendered.Add(vec3.toVec3(tmpl));
+        pd[0].numNormals = 1;
+
+        CameraViewFructrum cvf = new CameraViewFructrum(mainCamera);
+
+        var planetDataBuffer = new ComputeBuffer(1, PlanetDataSize);
+        planetDataBuffer.SetData(pd);
+        vertexGenerationShader.SetBuffer(0, "Data", planetDataBuffer);
+
+        var normalDataBuffer = new ComputeBuffer(facesToBeRendered.Count, 3 * sizeof(float));
+        normalDataBuffer.SetData(facesToBeRendered);
+        vertexGenerationShader.SetBuffer(0, "Normals", normalDataBuffer);
+
+        var vertexDataBuffer = new ComputeBuffer(BaseResolution * BaseResolution * facesToBeRendered.Count, 3 * sizeof(float));
+        vertexGenerationShader.SetBuffer(0, "Verticies", vertexDataBuffer);
+
+        var triangleDataBuffer = new ComputeBuffer(((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count, sizeof(int));
+        vertexGenerationShader.SetBuffer(0, "Triangles", triangleDataBuffer);
+
+        vertexGenerationShader.SetVector("cameraPosition", cam.transform.position);
+
+        vertexGenerationShader.SetVector("CamRight", cvf.Right);
+        vertexGenerationShader.SetVector("CamLeft", cvf.Left);
+        vertexGenerationShader.SetVector("CamUp", cvf.Up);
+        vertexGenerationShader.SetVector("CamDown", cvf.Down);
+
+        int ki = vertexGenerationShader.FindKernel("CSMain");
+        vertexGenerationShader.Dispatch(ki, 8, 8, 1);
+
+        Vector3[] verticies = new Vector3[BaseResolution * BaseResolution * facesToBeRendered.Count];
+        vertexDataBuffer.GetData(verticies);
+
+        int[] triangles = new int[((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count];
+        triangleDataBuffer.GetData(triangles);
+
+
+        TerrainMesh = new Mesh();
+        TerrainMesh.SetVertices(verticies);
+        TerrainMesh.SetTriangles(triangles, 0);
+        TerrainMesh.OptimizeReorderVertexBuffer();
+
+        TerrainMesh.RecalculateNormals();
+        TerrainMesh.RecalculateBounds();
+
+        planetDataBuffer.Release();
+        planetDataBuffer.Dispose();
+        normalDataBuffer.Dispose();
+        vertexDataBuffer.Dispose();
+        triangleDataBuffer.Dispose();
+
+        MeshUpdate = true;
+        yield return new WaitForEndOfFrame();
+
+        yield return null;
+    }
+
+
     public void MovePlanet(Vector3 _inp)
     {
         transform.position += _inp;
