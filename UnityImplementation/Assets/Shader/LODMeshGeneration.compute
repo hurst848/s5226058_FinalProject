@@ -1,6 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
+#include "noiseSimplex.cginc"
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 struct vec3
@@ -45,7 +46,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
             float3 pointOnUnitSphere = normalize(pointOnUnitCube)* Radius;
                 
-            Verticies[vertIndex] = pointOnUnitSphere;
+            Verticies[vertIndex] = pointOnUnitSphere * snoise(pointOnUnitSphere);
             UVs[vertIndex] = float2((float)x / (float)Resolution, (float)y / (float)Resolution);
             vertIndex++;
                 

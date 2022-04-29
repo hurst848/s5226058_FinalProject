@@ -184,7 +184,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 1ec7adff38e9d9445a6a3759b3d209d1, type: 2}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: Radius
-      value: 100
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: mainCamera

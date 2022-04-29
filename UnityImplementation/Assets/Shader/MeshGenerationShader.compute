@@ -4,6 +4,10 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 
+#include "noiseSimplex.cginc"
+// https://gist.github.com/fadookie/25adf86ae7e2753d717c
+#include "TerrainGenerationFunctions.cginc"
+
 struct PlanetData
 {
     float radius;
@@ -18,7 +22,10 @@ struct vec3
     float z;
 };
 
-
+float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
+{
+    return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
+}
 
 
 RWStructuredBuffer<PlanetData> Data;
@@ -28,6 +35,7 @@ RWStructuredBuffer<int> Triangles;
 
 
 float3 cameraPosition;
+float maximumTerrainHeight;
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -52,10 +60,10 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                 float2 percent = float2(y,x) / (Data[0].resolution - 1);
 
                 float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
-                float3 pointOnUnitSphere = normalize(pointOnUnitCube) * Data[0].radius;
+                float3 pointOnUnitSphere = normalize(pointOnUnitCube);
                 
 
-                Verticies[vertIndex] = pointOnUnitSphere;
+                Verticies[vertIndex] = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
                 vertIndex++;
                 
 

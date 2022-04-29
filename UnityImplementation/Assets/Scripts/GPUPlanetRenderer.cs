@@ -246,6 +246,7 @@ public class GPUPlanetRenderer : MonoBehaviour
         List<vec3> facesToBeRendered = new List<vec3>();
         Vector3 tmpl = -(transform.position - Camera.main.transform.position).normalized;
         facesToBeRendered.Add(vec3.toVec3(tmpl));
+        
         pd[0].numNormals = 1;
 
         CameraViewFructrum cvf = new CameraViewFructrum(mainCamera);
@@ -265,11 +266,7 @@ public class GPUPlanetRenderer : MonoBehaviour
         vertexGenerationShader.SetBuffer(0, "Triangles", triangleDataBuffer);
 
         vertexGenerationShader.SetVector("cameraPosition", cam.transform.position);
-
-        vertexGenerationShader.SetVector("CamRight", cvf.Right);
-        vertexGenerationShader.SetVector("CamLeft", cvf.Left);
-        vertexGenerationShader.SetVector("CamUp", cvf.Up);
-        vertexGenerationShader.SetVector("CamDown", cvf.Down);
+        vertexGenerationShader.SetFloat("maximumTerrainHeight", MaximumTerrainHeight);
 
         int ki = vertexGenerationShader.FindKernel("CSMain");
         vertexGenerationShader.Dispatch(ki, 8, 8, 1);
