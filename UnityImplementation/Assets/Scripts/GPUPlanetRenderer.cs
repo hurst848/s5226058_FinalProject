@@ -33,6 +33,9 @@ public class GPUPlanetRenderer : MonoBehaviour
     public float WaterLevel;
     public Gradient TestTererainGradient;
 
+    [Header("LOD Settings")]
+    [Range(0, 255)]
+    int LevelOfDetail = 0;
 
     [Header("Base Generation Parameters")]
     public float BaseNoiseScale = 1000;
@@ -301,10 +304,15 @@ public class GPUPlanetRenderer : MonoBehaviour
         int[] triangles = new int[((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count];
         triangleDataBuffer.GetData(triangles);
 
+        List<Color> colourz = new List<Color>(10000);
+        for (int i = 0; i < colourz.Count; i++) { colourz[i] = Color.red; }
+        
+
         //! Update the mesh
         TerrainMesh = new Mesh();
         TerrainMesh.SetVertices(verticies);
         TerrainMesh.SetTriangles(triangles, 0);
+        TerrainMesh.SetColors(colourz);
         TerrainMesh.OptimizeReorderVertexBuffer();
         TerrainMesh.RecalculateNormals();
         TerrainMesh.RecalculateBounds();

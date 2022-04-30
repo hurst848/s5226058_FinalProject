@@ -30,6 +30,7 @@ float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB
     return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
 }
 
+// LOD SHOULD MAP BETWEEN 25 and 255 res
 
 RWStructuredBuffer<PlanetData> Data;
 RWStructuredBuffer<vec3> Normals;
@@ -38,7 +39,9 @@ RWStructuredBuffer<int> Triangles;
 
 
 float3 cameraPosition;
+float3 planetPosition;
 float maximumTerrainHeight;
+int LevelOfDetail;
 
 
 //! Base Noise Parameter
@@ -51,7 +54,9 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     //! Set the poles
     float3 NorthPole = float3(0,1,0)  * Data[0].radius;
     float3 SouthPole = float3(0,-1,0) * Data[0].radius;
-    float MaximumDistance = abs((NorthPole - (float3(1,0,1) * Data[0].radius)).length);
+    float3 EquatorPole = float3(1,0,0) * Data[0].radius;
+    float MaximumDistance = 0.0;
+    MaximumDistance = abs(length(NorthPole - EquatorPole));
 
     //! Set required itr values
     int numVerts = 0;
@@ -81,17 +86,21 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                 //! Calculate Temperature !//
                     //! Calculate the Distance to the nearest pole
                 float3 pointOnGround = pointOnUnitSphere * Data[0].radius;
-                float DistanceToNorthPole = abs((NorthPole - pointOnGround).length);
-                float DistanceToSouthPole = abs((SouthPole - pointOnGround).length);
+                float DistanceToNorthPole = abs(length(NorthPole - pointOnGround));
+                float DistanceToSouthPole = abs(length(SouthPole - pointOnGround));
                 float DistanceToPole = 0.0;
                 if (DistanceToNorthPole <= MaximumDistance){ DistanceToPole = DistanceToNorthPole; }
                 else { DistanceToPole = DistanceToSouthPole; }
-                DistanceToPole = mapValues(DistanceToPole, 0.0, MaximumDistance, 0.0, 1.0);
+                DistanceToPole = mapValues(DistanceToPole, 0.0, MaximumDistance, 0.0, 1.75);
                     //! Calculate the Height value
-                float HeightFromGround = mapValues(First_TerrainVertex.length - Data[0].radius, 0.0, maximumTerrainHeight, 0.0, 1.0 );
+                float HeightFromGround = mapValues(length(First_TerrainVertex) - Data[0].radius, 0.0, maximumTerrainHeight, 0.0, 0.25 );
                     //! Combine values and map to a 0.0 to 1.0 value
                 float TemperatureAtVertex = mapValues(DistanceToPole + HeightFromGround, 0.0, 2.0, 0.0, 1.0);
-                Verticies[vertIndex] = First_TerrainVertex
+                
+                
+
+                //! Set Vertex in Array
+                Verticies[vertIndex] = First_TerrainVertex;
                 vertIndex++;
                 
 

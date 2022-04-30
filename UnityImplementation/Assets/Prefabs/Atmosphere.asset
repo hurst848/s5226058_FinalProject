@@ -16,16 +16,16 @@ MonoBehaviour:
   atmosphereShader: {fileID: 4800000, guid: 4e1c684ef1fd64a4286c4e895a01a64d, type: 3}
   opticalDepthCompute: {fileID: 7200000, guid: 6ab044ae6c1397f449e9d68868a40c9f, type: 3}
   textureSize: 1024
-  inScatteringPoints: 65
+  inScatteringPoints: 53
   opticalDepthPoints: 30
   densityFalloff: -1.1
   wavelengths: {x: 855.2, y: -719.4, z: 486.2}
-  testParams: {x: 5.95, y: 1.26, z: 0.1, w: 3}
-  scatteringStrength: 19.89
-  intensity: 1
+  testParams: {x: 5.95, y: 1.25, z: 0.13, w: 0.9}
+  scatteringStrength: 9.34
+  intensity: 0.5
   ditherStrength: 3.63
-  ditherScale: 20
+  ditherScale: 20.04
   blueNoise: {fileID: 2800000, guid: f841eb27388b90f419fe05e7ae00a255, type: 3}
-  atmosphereScale: 0.18
-  timeOfDay: 67.9
+  atmosphereScale: 0.123
+  timeOfDay: 67.67
   sunDst: 10000
