@@ -28,11 +28,18 @@ public class GPUPlanetRenderer : MonoBehaviour
     [Header("Generation Settings")]
     public int Radius;
     public int BaseResolution = 100;
-    public float NoiseScale = 1000;
     public float MaximumTerrainHeight = 100;
 
     public float WaterLevel;
     public Gradient TestTererainGradient;
+
+
+    [Header("Base Generation Parameters")]
+    public float BaseNoiseScale = 1000;
+    public Vector3 BaseOffset = new Vector3(0,0,0);
+
+    [Header("BiomeSettings")]
+
 
     [Header("Atmosphere Settings")]
     public bool AtmosphereEnabled;
@@ -51,6 +58,16 @@ public class GPUPlanetRenderer : MonoBehaviour
     private bool MeshUpdate;
     private Mesh TerrainMesh;
     private int renderNumber;
+
+
+    enum BiomeReference
+    {
+        Mountain,
+        Aquatic,
+        Grassland,
+        Forest,
+        Tundra
+    }
 
     struct PlanetData
     {
@@ -108,7 +125,7 @@ public class GPUPlanetRenderer : MonoBehaviour
         atmosphere.rendererData = data;
         MeshUpdate = false;
         filter = GetComponent<MeshFilter>();
-        StartCoroutine(GenerateVerticies());
+        StartCoroutine(GenerateVerticiesLOD());
     }
 
     // Update is called once per frame
@@ -239,53 +256,60 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     IEnumerator GenerateVerticiesLOD()
     {
+        //! Adds the planetary data buffer to the shader
         PlanetData[] pd = new PlanetData[1];
         pd[0].radius = Radius;
         pd[0].resolution = BaseResolution;
-
-        List<vec3> facesToBeRendered = new List<vec3>();
-        Vector3 tmpl = -(transform.position - Camera.main.transform.position).normalized;
-        facesToBeRendered.Add(vec3.toVec3(tmpl));
-        
         pd[0].numNormals = 1;
-
-        CameraViewFructrum cvf = new CameraViewFructrum(mainCamera);
 
         var planetDataBuffer = new ComputeBuffer(1, PlanetDataSize);
         planetDataBuffer.SetData(pd);
         vertexGenerationShader.SetBuffer(0, "Data", planetDataBuffer);
 
+        //! Adds the single normal to the shader
+        List<vec3> facesToBeRendered = new List<vec3>();
+        Vector3 tmpl = -(transform.position - Camera.main.transform.position).normalized;
+        facesToBeRendered.Add(vec3.toVec3(tmpl));
+        
         var normalDataBuffer = new ComputeBuffer(facesToBeRendered.Count, 3 * sizeof(float));
         normalDataBuffer.SetData(facesToBeRendered);
         vertexGenerationShader.SetBuffer(0, "Normals", normalDataBuffer);
 
+        //! Add emtpy vertex buffer to the shader
         var vertexDataBuffer = new ComputeBuffer(BaseResolution * BaseResolution * facesToBeRendered.Count, 3 * sizeof(float));
         vertexGenerationShader.SetBuffer(0, "Verticies", vertexDataBuffer);
 
+        //! Add empty triangle buffer to the shader
         var triangleDataBuffer = new ComputeBuffer(((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count, sizeof(int));
         vertexGenerationShader.SetBuffer(0, "Triangles", triangleDataBuffer);
 
+        //! Add Misc varibles to the shader
         vertexGenerationShader.SetVector("cameraPosition", cam.transform.position);
         vertexGenerationShader.SetFloat("maximumTerrainHeight", MaximumTerrainHeight);
 
+        vertexGenerationShader.SetFloat("Base_NoiseScale", BaseNoiseScale);
+        vertexGenerationShader.SetVector("Base_Offset", BaseOffset);
+
+        //! Get kernel ID and dispatch
         int ki = vertexGenerationShader.FindKernel("CSMain");
         vertexGenerationShader.Dispatch(ki, 8, 8, 1);
 
+        //! Retrive the Vertices and triangels from the completed shader
         Vector3[] verticies = new Vector3[BaseResolution * BaseResolution * facesToBeRendered.Count];
         vertexDataBuffer.GetData(verticies);
 
         int[] triangles = new int[((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count];
         triangleDataBuffer.GetData(triangles);
 
-
+        //! Update the mesh
         TerrainMesh = new Mesh();
         TerrainMesh.SetVertices(verticies);
         TerrainMesh.SetTriangles(triangles, 0);
         TerrainMesh.OptimizeReorderVertexBuffer();
-
         TerrainMesh.RecalculateNormals();
         TerrainMesh.RecalculateBounds();
 
+        //! Release and dispose of all the shader buffers
         planetDataBuffer.Release();
         planetDataBuffer.Dispose();
         normalDataBuffer.Dispose();

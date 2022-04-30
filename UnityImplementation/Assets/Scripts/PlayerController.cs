@@ -36,8 +36,8 @@ public class PlayerController : MonoBehaviour
         transform.eulerAngles += rotation;
 
         Vector3 position = new Vector3();
-        position += transform.forward;
-        if (Input.GetKey(KeyCode.W)) { }
+
+        if (Input.GetKey(KeyCode.W)) { position += transform.forward; }
         if (Input.GetKey(KeyCode.S)) { position -= transform.forward; }
         if (Input.GetKey(KeyCode.D)) { position += transform.right; }
         if (Input.GetKey(KeyCode.A)) { position -= transform.right; }

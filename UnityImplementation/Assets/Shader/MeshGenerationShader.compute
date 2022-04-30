@@ -1,12 +1,15 @@
-// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
-// Create a RenderTexture with enableRandomWrite flag and set it
-// with cs.SetTexture
 
-#include "noiseSimplex.cginc"
 // https://gist.github.com/fadookie/25adf86ae7e2753d717c
-#include "TerrainGenerationFunctions.cginc"
+#include "noiseSimplex.cginc"
+
+struct VertexData
+{
+    float3 Location;
+    float temperature;
+
+};
 
 struct PlanetData
 {
@@ -37,13 +40,23 @@ RWStructuredBuffer<int> Triangles;
 float3 cameraPosition;
 float maximumTerrainHeight;
 
+
+//! Base Noise Parameter
+float Base_NoiseScale;
+float3 Base_Offset;
+
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
+    //! Set the poles
+    float3 NorthPole = float3(0,1,0)  * Data[0].radius;
+    float3 SouthPole = float3(0,-1,0) * Data[0].radius;
+    float MaximumDistance = abs((NorthPole - (float3(1,0,1) * Data[0].radius)).length);
+
+    //! Set required itr values
     int numVerts = 0;
     int vertIndex = 0;
     int numTris = 0;
-    // TODO: insert actual code here!
     for (int i = 0; i < Data[0].numNormals; i++)
     {
         float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
@@ -62,8 +75,23 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                 float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
                 float3 pointOnUnitSphere = normalize(pointOnUnitCube);
                 
+                // Apply initial noise values
+                float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
 
-                Verticies[vertIndex] = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+                //! Calculate Temperature !//
+                    //! Calculate the Distance to the nearest pole
+                float3 pointOnGround = pointOnUnitSphere * Data[0].radius;
+                float DistanceToNorthPole = abs((NorthPole - pointOnGround).length);
+                float DistanceToSouthPole = abs((SouthPole - pointOnGround).length);
+                float DistanceToPole = 0.0;
+                if (DistanceToNorthPole <= MaximumDistance){ DistanceToPole = DistanceToNorthPole; }
+                else { DistanceToPole = DistanceToSouthPole; }
+                DistanceToPole = mapValues(DistanceToPole, 0.0, MaximumDistance, 0.0, 1.0);
+                    //! Calculate the Height value
+                float HeightFromGround = mapValues(First_TerrainVertex.length - Data[0].radius, 0.0, maximumTerrainHeight, 0.0, 1.0 );
+                    //! Combine values and map to a 0.0 to 1.0 value
+                float TemperatureAtVertex = mapValues(DistanceToPole + HeightFromGround, 0.0, 2.0, 0.0, 1.0);
+                Verticies[vertIndex] = First_TerrainVertex
                 vertIndex++;
                 
 
