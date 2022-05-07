@@ -1,0 +1,26 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct vec3
+{
+    float x;
+    float y;
+    float z;
+};
+
+struct WindFactor
+{
+    vec3 Location;
+    vec3 Wind;
+};
+
+
+RWTexture2D<float4> Result;
+RWStructuredBuffer<WindFactor> windMap;
+RWStructuredBuffer<vec3> 
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+}

@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 [RequireComponent(typeof(MeshFilter))]
-public class GPUPlanetRenderer : MonoBehaviour 
+public class GPUPlanetRenderer : MonoBehaviour
 {
     // Size of Moon //
     /*
@@ -24,6 +24,7 @@ public class GPUPlanetRenderer : MonoBehaviour
     [Header("Shaders")]
     public ComputeShader vertexGenerationShader;
     public ComputeShader terrainGenerationShader;
+    public ComputeShader windSolver;
 
     [Header("Generation Settings")]
     public int Radius;
@@ -39,10 +40,16 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     [Header("Base Generation Parameters")]
     public float BaseNoiseScale = 1000;
-    public Vector3 BaseOffset = new Vector3(0,0,0);
+    public Vector3 BaseOffset = new Vector3(0, 0, 0);
 
     [Header("BiomeSettings")]
-
+    [Range(0.0f, 2.0f)]
+    public float TemperatureWeight; // Closer to zero favours Equator, closer to 2 favours height
+    [Range(0,100)]
+    public int NumberOfWindNodes;
+    [Range(0.0f, 100.0f)]
+    public float WindNodePowerMax;
+    private List<WindFactor> WindSimulations;
 
     [Header("Atmosphere Settings")]
     public bool AtmosphereEnabled;
@@ -72,6 +79,11 @@ public class GPUPlanetRenderer : MonoBehaviour
         Tundra
     }
 
+    struct WindFactor
+    {
+        public vec3 Location;
+        public vec3 Wind;
+    };
     struct PlanetData
     {
         public float radius;
@@ -273,7 +285,14 @@ public class GPUPlanetRenderer : MonoBehaviour
         List<vec3> facesToBeRendered = new List<vec3>();
         Vector3 tmpl = -(transform.position - Camera.main.transform.position).normalized;
         facesToBeRendered.Add(vec3.toVec3(tmpl));
-        
+        Vector3 AxisA = new Vector3(tmpl.y, tmpl.z, tmpl.x);
+        Vector3 AxisB = Vector3.Cross(tmpl, AxisA);
+        facesToBeRendered.Add(vec3.toVec3(AxisA));
+        facesToBeRendered.Add(vec3.toVec3(-AxisA));
+        facesToBeRendered.Add(vec3.toVec3(AxisB));
+        facesToBeRendered.Add(vec3.toVec3(-AxisB));
+
+
         var normalDataBuffer = new ComputeBuffer(facesToBeRendered.Count, 3 * sizeof(float));
         normalDataBuffer.SetData(facesToBeRendered);
         vertexGenerationShader.SetBuffer(0, "Normals", normalDataBuffer);
@@ -292,6 +311,8 @@ public class GPUPlanetRenderer : MonoBehaviour
 
         vertexGenerationShader.SetFloat("Base_NoiseScale", BaseNoiseScale);
         vertexGenerationShader.SetVector("Base_Offset", BaseOffset);
+
+        vertexGenerationShader.SetFloat("TemperatureWeight", TemperatureWeight);
 
         //! Get kernel ID and dispatch
         int ki = vertexGenerationShader.FindKernel("CSMain");
@@ -337,7 +358,10 @@ public class GPUPlanetRenderer : MonoBehaviour
         GalacticPosition += _inp;
     }
 
-
+    public void CreateWindModel()
+    {
+       
+    }
 
 }
 
