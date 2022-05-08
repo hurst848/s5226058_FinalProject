@@ -1,26 +1,108 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
-struct vec3
+#include "noiseSimplex.cginc"
+
+
+int WindMapResolution;
+int NumberOfWindIterations;
+float DeviationMax;
+int itr;
+RWStructuredBuffer<float3> WindMap;
+
+float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
 {
-    float x;
-    float y;
-    float z;
-};
-
-struct WindFactor
+    return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
+}
+int GetCoordinate(int _x, int _y)
 {
-    vec3 Location;
-    vec3 Wind;
-};
+    return _x + _y * WindMapResolution;
+}
+float3 AddDeviation(float3 _inp)
+{
+    float3 rtrn;
+    int attribute = mapValues(snoise(_inp * itr), 0, 1, 0 , 3);
+    if (attribute < 1)
+    {   
+        rtrn = float3(_inp.x + mapValues(snoise(_inp * 12 * itr), 0, 1, -DeviationMax , DeviationMax), _inp.y, _inp.z);
+    }
+    else if (attribute < 2)
+    {
+        rtrn = float3(_inp.x, _inp.y + mapValues(snoise(_inp * 123 * itr), 0, 1, -DeviationMax , DeviationMax), _inp.z);
+    }
+    else
+    {
+        rtrn = float3(_inp.x, _inp.y, _inp.z + mapValues(snoise(_inp * 4783 * itr), 0, 1, -DeviationMax , DeviationMax));
+    }
+    return rtrn;
 
-
-RWTexture2D<float4> Result;
-RWStructuredBuffer<WindFactor> windMap;
-RWStructuredBuffer<vec3> 
+}
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    // TODO: insert actual code here!
+    float XRes = WindMapResolution * 3;
+    float YRes = WindMapResolution * 4;
+    for (int i = 0; i < NumberOfWindIterations; i++)
+    {
+        for (int x = 0; x < XRes; x++)
+        {
+            for (int y = 0; y < YRes; y++)
+            {
+                itr++;
+                float3 CurrentSample = WindMap[GetCoordinate(x,y)];
+                // ! If the Top Square
+                if (y < WindMapResolution) 
+                {
+                    if (y == 0)
+                    {
+                        WindMap[GetCoordinate(x - 1, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x - 1, y)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x - 1, YRes - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, YRes - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, YRes - 1)] += AddDeviation(CurrentSample);
+                    }
+                    else if (x == WindMapResolution - 1) // If it is on the left bounary
+                    {
+                        WindMap[GetCoordinate(y - 1, WindMapResolution)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(y, WindMapResolution)] += AddDeviation(CurrentSample);\
+                        WindMap[GetCoordinate(y + 1, WindMapResolution)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, y - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y + 1)] += AddDeviation(CurrentSample);
+                    }
+                    else if (x  == (WindMapResolution * 2) - 1) // If it is on the right boundary
+                    {
+                        WindMap[GetCoordinate((WindMapResolution * 2) + y - 1, WindMapResolution)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate((WindMapResolution * 2) + y, WindMapResolution)] += AddDeviation(CurrentSample);\
+                        WindMap[GetCoordinate((WindMapResolution * 2) + y + 1, WindMapResolution)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, y - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x - 1, y - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x - 1, y)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x - 1, y + 1)] += AddDeviation(CurrentSample);
+                    }
+                    else if (x >= WindMapResolution - 1 && x  <= (WindMapResolution * 2) - 1)
+                    {}
+                        WindMap[GetCoordinate(x - 1, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y + 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x - 1, y)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x - 1, y - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x, y - 1)] += AddDeviation(CurrentSample);
+                        WindMap[GetCoordinate(x + 1, y - 1)] += AddDeviation(CurrentSample);
+
+                    }
+
+                }
+            }
+
+        }
 }
+

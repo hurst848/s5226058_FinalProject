@@ -24,7 +24,7 @@ public class GPUPlanetRenderer : MonoBehaviour
     [Header("Shaders")]
     public ComputeShader vertexGenerationShader;
     public ComputeShader terrainGenerationShader;
-    public ComputeShader windSolver;
+    public ComputeShader windSolverShader;
 
     [Header("Generation Settings")]
     public int Radius;
@@ -45,11 +45,13 @@ public class GPUPlanetRenderer : MonoBehaviour
     [Header("BiomeSettings")]
     [Range(0.0f, 2.0f)]
     public float TemperatureWeight; // Closer to zero favours Equator, closer to 2 favours height
+    public int WindMapResolution;
     [Range(0,100)]
     public int NumberOfWindNodes;
     [Range(0.0f, 100.0f)]
     public float WindNodePowerMax;
     private List<WindFactor> WindSimulations;
+    public int NumberOfWindIterations;
 
     [Header("Atmosphere Settings")]
     public bool AtmosphereEnabled;
@@ -360,7 +362,12 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     public void CreateWindModel()
     {
-       
+        Texture2D windTexture = new Texture2D(WindMapResolution * 3, WindMapResolution * 4);
+        windSolverShader.SetTexture(0, "Result", windTexture);
+
+        int ki = vertexGenerationShader.FindKernel("CSMain");
+        vertexGenerationShader.Dispatch(ki, 8, 8, 1);
+
     }
 
 }

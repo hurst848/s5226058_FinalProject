@@ -123,10 +123,13 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         }
         numVerts+= Data[0].resolution * Data[0].resolution;
     }
+        
+}
 
 
-
-    float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
+void lodrun()
+{
+    float3 normal = float3(Normals[0].x, Normals[0].y, Normals[0].z);
     float3 AxisA = float3(normal.y, normal.z, normal.x);
     float3 AxisB = cross(normal, AxisA);
     for (int lod = 0; lod < LevelOfDetail)
@@ -196,5 +199,4 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
         }
     }
-        
 }
