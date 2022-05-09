@@ -197,54 +197,9 @@ public class test : MonoBehaviour
                             Vector2 CurrentSample = texturepoints[GetCoordinate(x, y)];
                             StoredCalculated.SetPixel(x, y, Color.cyan);
                             StoredCalculated.Apply();
-                            if (StoredCalculated.GetPixel(x - 1, y + 1) != Color.cyan)//North West
-                            {
-                                Vector2 a = texturepoints[GetCoordinate(x - 1, y + 1)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x - 1, y + 1)] = a;
-                                StoredCalculated.SetPixel(x - 1, y + 1, Color.cyan);
-                            }
-                            if (StoredCalculated.GetPixel(x, y + 1) != Color.cyan)//North
-                            {
-                                Vector2 b = texturepoints[GetCoordinate(x, y + 1)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x, y + 1)] = b;
-                                StoredCalculated.SetPixel(x, y + 1, Color.cyan);
-                            }
-                            if (StoredCalculated.GetPixel(x + 1, y + 1) != Color.cyan)//North East
-                            {
-                                Vector2 c = texturepoints[GetCoordinate(x + 1, y + 1)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x + 1, y + 1)] = c;
-                                StoredCalculated.SetPixel(x + 1, y + 1, Color.cyan);
-                            }
-                            if (StoredCalculated.GetPixel(x - 1, y) != Color.cyan)//West
-                            {
-                                Vector2 d = texturepoints[GetCoordinate(x - 1, y)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x - 1, y)] = d;
-                                StoredCalculated.SetPixel(x - 1, y, Color.cyan);
-                            }
-                            if (StoredCalculated.GetPixel(x + 1, y) != Color.cyan)//East
-                            {
-                                Vector2 e = texturepoints[GetCoordinate(x + 1, y)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x + 1, y)] = e;
-                                StoredCalculated.SetPixel(x + 1, y, Color.cyan);
-                            }
-                            if (StoredCalculated.GetPixel(x - 1, y - 1) != Color.cyan)//South West
-                            {
-                                Vector2 f = texturepoints[GetCoordinate(x - 1, y - 1)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x - 1, y - 1)] = f;
-                                StoredCalculated.SetPixel(x - 1, y - 1, Color.cyan);
-                            }
-                            if (StoredCalculated.GetPixel(x, y - 1) != Color.cyan)//South
-                            {
-                                Vector2 g = texturepoints[GetCoordinate(x, y - 1)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x, y - 1)] = g;
-                                StoredCalculated.SetPixel(x, y - 1, Color.cyan);
-                            }
-                            if (StoredCalculated.GetPixel(x + 1, y - 1) != Color.cyan)//South East
-                            {
-                                Vector2 h = texturepoints[GetCoordinate(x + 1, y - 1)] + AddDeviation(CurrentSample);
-                                texturepoints[GetCoordinate(x + 1, y - 1)] = h;
-                                StoredCalculated.SetPixel(x + 1, y - 1, Color.cyan);
-                            }
+
+                            SpreadWind(CurrentSample, x, y, ref StoredCalculated);
+
                         }
                         else if (IsWithinMap(x, y) && !IsNotOnEdge(x, y))
                         {
@@ -264,7 +219,7 @@ public class test : MonoBehaviour
             StoredCalculated.wrapMode = TextureWrapMode.Clamp;
             StoredCalculated.Apply();
             GetComponent<MeshRenderer>().material.mainTexture = StoredCalculated;
-            yield return new WaitForSeconds(0.25f);
+            yield return new WaitForSeconds(0.1f);
 
 
             for (int j = 0; j < texturepoints.Length; j++)
@@ -293,11 +248,12 @@ public class test : MonoBehaviour
     }
 
 
-    void SpreadWind(Vector2 _currentSample, int _x, int _y, Texture2D _storedCalculated)
+    void SpreadWind(Vector2 _currentSample, int _x, int _y, ref Texture2D _storedCalculated)
     {
         Vector2 normalizedSample = _currentSample.normalized;
 
-        float degrees = Vector2.Angle(UnitCircle[0], _currentSample);
+        float degrees = Vector2.Angle(UnitCircle[0], normalizedSample);
+        
         if (degrees < 22.5f) // Facing North
         {
             if (_storedCalculated.GetPixel(_x - 1, _y + 1) != Color.cyan)//North West
@@ -477,18 +433,11 @@ public class test : MonoBehaviour
 
     Vector2 AddDeviation(Vector3 _inp)
     {
-        Vector2 rtrn = new Vector3();
-        int attribute = Random.Range(0,3);
-        if (attribute < 1)
-        {
-            rtrn = new Vector2(_inp.x + Random.Range(-MaxDeviation, MaxDeviation), _inp.y);
-        }
-        else if (attribute < 2)
-        {
-            rtrn = new Vector2(_inp.x, _inp.y + Random.Range(-MaxDeviation, MaxDeviation));
-        }
-        float newMag = rtrn.magnitude * 0.8f;
-        rtrn = rtrn.normalized * newMag;
+        Vector2 rtrn = new Vector2();
+        float newMag = rtrn.magnitude;
+        int attribute = Random.Range(0,4);
+        rtrn = new Vector2(_inp.x + Random.Range(-MaxDeviation, MaxDeviation), _inp.y + Random.Range(-MaxDeviation, MaxDeviation));
+        //rtrn = rtrn.normalized * newMag;
         return rtrn;
 
     }
