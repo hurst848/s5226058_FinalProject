@@ -366,9 +366,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   WindMapResolution: 50
-  NumberOfWindNodes: 4
+  NumberOfWindNodes: 8
   WindNodePowerMax: 7.6
-  NumberOfWindIterations: 1
+  NumberOfWindIterations: 50
   MaxDeviation: 0.5
   windSolverShader: {fileID: 7200000, guid: 3de4f74784cf5cc42833cfe61bb51368, type: 3}
   Tex: {fileID: 0}
