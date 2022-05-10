@@ -140,7 +140,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3408942677054111069, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 10000000
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: 3408942677054111069, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: m_LocalPosition.y
@@ -184,7 +184,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 1ec7adff38e9d9445a6a3759b3d209d1, type: 2}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: Radius
-      value: 1737400
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: mainCamera
@@ -208,7 +208,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: MaximumTerrainHeight
-      value: 350.35
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: terrainGenerationShader

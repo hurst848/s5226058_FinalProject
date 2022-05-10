@@ -333,6 +333,7 @@ public class GPUPlanetRenderer : MonoBehaviour
 
         //! Update the mesh
         TerrainMesh = new Mesh();
+        TerrainMesh.indexFormat = IndexFormat.UInt32;
         TerrainMesh.SetVertices(verticies);
         TerrainMesh.SetTriangles(triangles, 0);
         TerrainMesh.SetColors(colourz);
