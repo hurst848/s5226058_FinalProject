@@ -366,7 +366,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   WindMapResolution: 50
-  NumberOfWindNodes: 8
+  NumberOfWindNodes: 12
   WindNodePowerMax: 7.6
   NumberOfWindIterations: 50
   MaxDeviation: 0.5
