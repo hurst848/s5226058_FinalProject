@@ -24,7 +24,7 @@ public class GPUPlanetRenderer : MonoBehaviour
     [Header("Shaders")]
     public ComputeShader vertexGenerationShader;
     public ComputeShader terrainGenerationShader;
-    public ComputeShader windSolverShader;
+    public ComputeShader biomeGenertaionShader;
 
     [Header("Generation Settings")]
     public int Radius;
@@ -43,6 +43,8 @@ public class GPUPlanetRenderer : MonoBehaviour
     public Vector3 BaseOffset = new Vector3(0, 0, 0);
 
     [Header("BiomeSettings")]
+    public int BiomeMapResolution = 50;
+    private WindSimultaion wind;
     [Range(0.0f, 2.0f)]
     public float TemperatureWeight; // Closer to zero favours Equator, closer to 2 favours height
     public int WindMapResolution;
@@ -50,8 +52,8 @@ public class GPUPlanetRenderer : MonoBehaviour
     public int NumberOfWindNodes;
     [Range(0.0f, 100.0f)]
     public float WindNodePowerMax;
-    private List<WindFactor> WindSimulations;
     public int NumberOfWindIterations;
+    public float WindMaxDeviation;
 
     [Header("Atmosphere Settings")]
     public bool AtmosphereEnabled;
@@ -81,11 +83,6 @@ public class GPUPlanetRenderer : MonoBehaviour
         Tundra
     }
 
-    struct WindFactor
-    {
-        public vec3 Location;
-        public vec3 Wind;
-    };
     struct PlanetData
     {
         public float radius;
@@ -127,6 +124,8 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     void Start()
     {
+
+        GenerateBiomes();
         GalacticPosition = new DVec3(transform.position);
         PlanetDataSize = sizeof(float) + (2 * (sizeof(int)));
         cam = GameObject.FindObjectOfType<CameraScript>();
@@ -134,6 +133,14 @@ public class GPUPlanetRenderer : MonoBehaviour
         {
             throw new System.Exception();
         }
+        // Wind Setup and Run
+        wind = new WindSimultaion();
+        wind.MaxDeviation = WindMaxDeviation;
+        wind.NumberOfWindIterations = NumberOfWindIterations;
+        wind.NumberOfWindNodes = NumberOfWindNodes;
+        wind.WindMapResolution = WindMapResolution;
+        wind.WindNodePowerMax = WindNodePowerMax;
+        StartCoroutine(wind.GenerateWind());
 
         mainCamera = Camera.main;
         AtmosphereEnabled = true;
@@ -142,7 +149,7 @@ public class GPUPlanetRenderer : MonoBehaviour
         atmosphere.rendererData = data;
         MeshUpdate = false;
         filter = GetComponent<MeshFilter>();
-        StartCoroutine(GenerateVerticiesLOD());
+        
     }
 
     // Update is called once per frame
@@ -355,20 +362,479 @@ public class GPUPlanetRenderer : MonoBehaviour
     }
 
 
+    void GenerateBiomes()
+    {
+        biomeGenertaionShader.SetFloat("TemperatureWeight",TemperatureWeight);
+        biomeGenertaionShader.SetInt("BiomeMapResolution", BiomeMapResolution);
+        biomeGenertaionShader.SetFloat("Radius", Radius);
+        biomeGenertaionShader.SetFloat("NoiseScale", BaseNoiseScale);
+        biomeGenertaionShader.SetVector("Offset", BaseOffset);
+        biomeGenertaionShader.SetFloat("MaximumTerrainHeight", MaximumTerrainHeight);
+
+        var biomeTemperatureBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, 1 * sizeof(float));
+        biomeGenertaionShader.SetBuffer(0, "temperatureData", biomeTemperatureBuffer);
+
+        var biomeWindBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, 2 * sizeof(float));
+        biomeGenertaionShader.SetBuffer(0, "windData", biomeWindBuffer);
+
+        //! Get kernel ID and dispatch
+        int ki = biomeGenertaionShader.FindKernel("CSMain");
+        biomeGenertaionShader.Dispatch(ki, 8, 8, 1);
+
+        biomeTemperatureBuffer.Release(); biomeTemperatureBuffer.Dispose();
+        biomeWindBuffer.Release(); biomeWindBuffer.Dispose();
+
+    }
+
+
     public void MovePlanet(Vector3 _inp)
     {
         transform.position += _inp;
         GalacticPosition += _inp;
     }
 
-    public void CreateWindModel()
+
+
+}
+
+public class WindSimultaion
+{
+    public int WindMapResolution;
+    public int NumberOfWindNodes;
+    public float WindNodePowerMax;
+    public int NumberOfWindIterations;
+    public float MaxDeviation;
+
+    public Texture2D Tex;
+    private bool running = false;
+    public Vector2[] WindMap;
+
+    private List<Vector2Int> tmpWindStorage;
+    private Dictionary<Vector2Int, bool> windDictionary;
+
+    Vector2[] UnitCircle =
     {
-        Texture2D windTexture = new Texture2D(WindMapResolution * 3, WindMapResolution * 4);
-        windSolverShader.SetTexture(0, "Result", windTexture);
+        new Vector2(0,1),                                   // North
+        new Vector2(0.5f, Mathf.Sqrt(3) / 2),               // North-North-East
+        new Vector2(Mathf.Sqrt(2) / 2,Mathf.Sqrt(2) / 2),   // North-East
+        new Vector2(Mathf.Sqrt(3) / 2, 0.5f),               // North-East-East
+        new Vector2(1,0),                                   // East
+        new Vector2(Mathf.Sqrt(3) / 2, -0.5f),              // South-East-East
+        new Vector2(Mathf.Sqrt(2) / 2,-Mathf.Sqrt(2) / 2),  // South-East
+        new Vector2(0.5f, -Mathf.Sqrt(3) / 2),              // South-South-East
+        new Vector2(0,-1),                                  // South
+        new Vector2(-0.5f, -Mathf.Sqrt(3) / 2),             // South-South-West
+        new Vector2(-Mathf.Sqrt(2) / 2,-Mathf.Sqrt(2) / 2), // South-West
+        new Vector2(-Mathf.Sqrt(3) / 2, -0.5f),             // South-West-West
+        new Vector2(-1,0),                                  // West
+        new Vector2(-Mathf.Sqrt(3) / 2, 0.5f),              // North-West-West
+        new Vector2(-Mathf.Sqrt(2) / 2,Mathf.Sqrt(2) / 2),  // North-West
+        new Vector2(-0.5f, Mathf.Sqrt(3) / 2)               // North-North-West
+    };
 
-        int ki = vertexGenerationShader.FindKernel("CSMain");
-        vertexGenerationShader.Dispatch(ki, 8, 8, 1);
+    public IEnumerator GenerateWind()
+    {
+        int XRes = WindMapResolution * 3;
+        int YRes = WindMapResolution * 4;
+        Tex = new Texture2D(XRes, YRes);
+        for (int x = 0; x < XRes; x++) { for (int y = 0; y < YRes; y++) { Tex.SetPixel(x, y, Color.black); } }
+        Tex.Apply();
+        tmpWindStorage = new List<Vector2Int>();
 
+        WindMap = new Vector2[(WindMapResolution * 3) * (WindMapResolution * 4)];
+        for (int i = 0; i < WindMap.Length; i++) { WindMap[i] = Vector2.zero; }
+        List<Vector2Int> windNodeOrigins = new List<Vector2Int>();
+        for (int i = 0; i < NumberOfWindNodes; i++)
+        {
+            Vector2 rand = Random.insideUnitCircle;
+            rand *= Random.Range(-WindNodePowerMax, WindNodePowerMax);
+            Vector2 coord = new Vector2(Random.Range(0, (WindMapResolution * 3)), Random.Range(0, (WindMapResolution * 4)));
+            if (IsWithinMap((int)coord.x, (int)coord.y))
+            {
+                WindMap[((int)coord.x + ((int)coord.y * (WindMapResolution * 3)))] = rand;
+                windNodeOrigins.Add(new Vector2Int((int)coord.x, (int)coord.y));
+            }
+            else { i--; }
+        }
+
+        for (int i = 0; i < windNodeOrigins.Count; i++)
+        {
+            windDictionary = new Dictionary<Vector2Int, bool>();
+            List<Vector2Int> windToBeSpread = new List<Vector2Int>();
+            windToBeSpread.Add(windNodeOrigins[i]);
+            for (int j = 0; j < NumberOfWindIterations; j++)
+            {
+                tmpWindStorage = new List<Vector2Int>();
+                for (int node = 0; node < windToBeSpread.Count; node++)
+                {
+                    Texture2D StoredCalculated = new Texture2D(XRes, YRes);
+                    Vector2 CurrentSample = WindMap[GetCoordinate(windToBeSpread[node].x, windToBeSpread[node].y)];
+                    if (IsWithinMap(windToBeSpread[node].x, windToBeSpread[node].y) && IsNotOnEdge(windToBeSpread[node].x, windToBeSpread[node].y))
+                    {
+                        SpreadWind(CurrentSample, windToBeSpread[node].x, windToBeSpread[node].y, ref StoredCalculated);
+                    }
+                    else if (IsWithinMap(windToBeSpread[node].x, windToBeSpread[node].y) && !IsNotOnEdge(windToBeSpread[node].x, windToBeSpread[node].y)){}
+                    else
+                    {
+                        Tex.SetPixel(windToBeSpread[node].x, windToBeSpread[node].y, new Color(0, 0, 0));
+                    }
+                    StoredCalculated.Apply();
+                }
+                windToBeSpread.Clear();
+                windToBeSpread = new List<Vector2Int>();
+                windToBeSpread = tmpWindStorage;
+            }
+            for (int j = 0; j < WindMap.Length; j++)
+            {
+                if (WindMap[j] != Vector2.zero)
+                {
+                    Tex.SetPixel(j % XRes, j / XRes, new Color(1, 1, 1));
+                }
+            }
+            Tex.filterMode = FilterMode.Point;
+            Tex.wrapMode = TextureWrapMode.Clamp;
+            Tex.Apply();
+        }
+        running = false;
+        yield return null;
+    }
+    private void SpreadWind(Vector2 _currentSample, int _x, int _y, ref Texture2D _storedCalculated)
+    {
+        Vector2 normalizedSample = _currentSample.normalized;
+
+        float degrees = Vector2.Angle(UnitCircle[0], normalizedSample);
+        bool des = false;
+        if (degrees < 22.5f) // Facing North
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y + 1), out des))//_storedCalculated.GetPixel(_x - 1, _y + 1) != Color.cyan)//North West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
+                Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
+                _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y + 1), out des))//_storedCalculated.GetPixel(_x, _y + 1) != Color.cyan)//North
+            {
+                Vector2Int tmp = new Vector2Int(_x, _y + 1);
+                Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x, _y + 1)] = b;
+                _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y + 1), out des))//_storedCalculated.GetPixel(_x + 1, _y + 1) != Color.cyan)//North East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
+                Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
+                _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+        }
+        else if (_currentSample.x > 0 && degrees >= 22.5 && degrees < 67.5) // Facing North East
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y + 1), out des))//_storedCalculated.GetPixel(_x, _y + 1) != Color.cyan)//North
+            {
+                Vector2Int tmp = new Vector2Int(_x, _y + 1);
+                Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x, _y + 1)] = b;
+                _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y + 1), out des))//_storedCalculated.GetPixel(_x + 1, _y + 1) != Color.cyan)//North East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
+                Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
+                _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y), out des))//_storedCalculated.GetPixel(_x + 1, _y) != Color.cyan)//East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y);
+                Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y)] = e;
+                _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+
+        }
+        else if (_currentSample.x > 0 && degrees >= 67.5 && degrees < 112.5) // Facing East
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y + 1), out des))//_storedCalculated.GetPixel(_x + 1, _y + 1) != Color.cyan)//North East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
+                Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
+                _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y), out des))//_storedCalculated.GetPixel(_x + 1, _y) != Color.cyan)//East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y);
+                Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y)] = e;
+                _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y - 1), out des))//_storedCalculated.GetPixel(_x + 1, _y - 1) != Color.cyan)//South East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
+                Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
+                _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+        }
+        else if (_currentSample.x > 0 && degrees >= 112.5 && degrees < 157.5) // Facing South East
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y), out des))//_storedCalculated.GetPixel(_x + 1, _y) != Color.cyan)//East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y);
+                Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y)] = e;
+                _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y - 1), out des))//_storedCalculated.GetPixel(_x + 1, _y - 1) != Color.cyan)//South East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
+                Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
+                _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y - 1), out des))//_storedCalculated.GetPixel(_x, _y - 1) != Color.cyan)//South
+            {
+                Vector2Int tmp = new Vector2Int(_x, _y - 1);
+                Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x, _y - 1)] = g;
+                _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+        }
+        else if (degrees >= 157.5) // Facing South
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y - 1), out des))//_storedCalculated.GetPixel(_x - 1, _y - 1) != Color.cyan)//South West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
+                Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
+                _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y - 1), out des))//_storedCalculated.GetPixel(_x, _y - 1) != Color.cyan)//South
+            {
+                Vector2Int tmp = new Vector2Int(_x, _y - 1);
+                Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x, _y - 1)] = g;
+                _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y - 1), out des))//_storedCalculated.GetPixel(_x + 1, _y - 1) != Color.cyan)//South East
+            {
+                Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
+                Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
+                _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+        }
+        else if (_currentSample.x <= 0 && degrees >= 112.5 && degrees < 157.5) // Facing South West
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y - 1), out des))//_storedCalculated.GetPixel(_x, _y - 1) != Color.cyan)//South
+            {
+                Vector2Int tmp = new Vector2Int(_x, _y - 1);
+                Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x, _y - 1)] = g;
+                _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y - 1), out des))//_storedCalculated.GetPixel(_x - 1, _y - 1) != Color.cyan)//South West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
+                Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
+                _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y), out des))//_storedCalculated.GetPixel(_x - 1, _y) != Color.cyan)//West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y);
+                Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y)] = d;
+                _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+        }
+        else if (_currentSample.x <= 0 && degrees >= 67.5 && degrees < 112.5) // Facing West
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y - 1), out des))//_storedCalculated.GetPixel(_x - 1, _y - 1) != Color.cyan)//South West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
+                Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
+                _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y), out des))//_storedCalculated.GetPixel(_x - 1, _y) != Color.cyan)//West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y);
+                Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y)] = d;
+                _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y + 1), out des))//_storedCalculated.GetPixel(_x - 1, _y + 1) != Color.cyan)//North West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
+                Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
+                _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+        }
+        else if (_currentSample.x <= 0 && degrees >= 22.5 && degrees < 67.5) // Facing North West
+        {
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y), out des))//_storedCalculated.GetPixel(_x - 1, _y) != Color.cyan)//West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y);
+                Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y)] = d;
+                _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y + 1), out des))//_storedCalculated.GetPixel(_x - 1, _y + 1) != Color.cyan)//North West
+            {
+                Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
+                Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
+                _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y + 1), out des))//_storedCalculated.GetPixel(_x, _y + 1) != Color.cyan)//North
+            {
+                Vector2Int tmp = new Vector2Int(_x, _y + 1);
+                Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
+                WindMap[GetCoordinate(_x, _y + 1)] = b;
+                _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
+                tmpWindStorage.Add(tmp);
+                windDictionary.Add(tmp, true);
+            }
+        }
+
+    }
+    int GetCoordinate(int _x, int _y)
+    {
+        return _x + (_y * (WindMapResolution * 3));
+    }
+    Vector2 AddDeviation(Vector2 _inp)
+    {
+        Vector2 rtrn = new Vector2();
+        float newMag = _inp.magnitude;
+        int attribute = Random.Range(0, 4);
+        rtrn = new Vector2(_inp.x + Random.Range(-MaxDeviation, MaxDeviation), _inp.y + Random.Range(-MaxDeviation, MaxDeviation));
+        rtrn = rtrn.normalized * newMag;
+        return rtrn;
+
+    }
+    private bool IsWithinMap(int _x, int _y)
+    {
+
+        if (_x < WindMapResolution && _y < WindMapResolution) { return false; }
+        if (_x > WindMapResolution * 2 && _y < WindMapResolution) { return false; }
+        if (_x < WindMapResolution && _y > WindMapResolution * 2) { return false; }
+        if (_x > WindMapResolution * 2 && _y > WindMapResolution * 2) { return false; }
+
+        return true;
+
+    }
+    private bool IsNotOnEdge(int _x, int _y)
+    {
+        if (_y == 0) { return false; }
+        if (_x == WindMapResolution && _y < WindMapResolution) { return false; }
+        if (_x == (WindMapResolution * 2) && _y < WindMapResolution) { return false; }
+        if ((_x < WindMapResolution || _x > 2 * WindMapResolution) && _y == WindMapResolution) { return false; }
+        if (_x == 0 || _x == 3 * WindMapResolution - 1) { return false; }
+        if (_y == WindMapResolution * 2 && (_x < WindMapResolution || _x > 2 * WindMapResolution)) { return false; }
+        if (_x == WindMapResolution && _y > 2 * WindMapResolution) { return false; }
+        if (_x == 2 * WindMapResolution && _y > 2 * WindMapResolution) { return false; }
+        if (_y == 4 * WindMapResolution - 1) { return false; }
+        return true;
+
+    }
+
+
+
+}
+
+[CreateAssetMenu(menuName = "HurstPlanetGenerator/Biome")]
+public class Biome : ScriptableObject
+{
+    [Header("Selection Parameters")]
+    [Range(0.0f, 1.0f)]
+    public float MinimumHeatSelection = 0.0f;
+    [Range(0.0f, 1.0f)]
+    public float MaximumHeatSelection = 1.0f;
+    [Range(0.0f, 1.0f)]
+    public float MinimumMoistureSelection = 0.0f;
+    [Range(0.0f, 1.0f)]
+    public float MaximumMoistureSelection = 1.0f;
+    [Header("Generation Parameters")]
+    public Vector3 BiomeNoiseOffset = new Vector3(0, 0);
+    public float BiomeNoiseScale = 1.0f;
+    [Range(0.0f, 1.0f)]
+    public float BiomeRelativeAltitude= 1.0f; 
+
+    public SerializedBiome ReturnSerializedBiome()
+    {
+        SerializedBiome rtrn;
+        vec3 tmp; tmp.x = BiomeNoiseOffset.x; tmp.y = BiomeNoiseOffset.y; tmp.z = BiomeNoiseOffset.z;
+        rtrn.BNO = tmp;
+        rtrn.BNS = BiomeNoiseScale;
+        rtrn.MaxHS = MaximumHeatSelection;
+        rtrn.MaxMS = MaximumMoistureSelection;
+        rtrn.MinHS = MinimumHeatSelection;
+        rtrn.MinMS = MinimumMoistureSelection;
+        rtrn.BRA = BiomeRelativeAltitude;
+        return rtrn;
+    }
+
+
+    public struct vec3 { public float x; public float y; public float z; }
+
+    public struct SerializedBiome
+    {
+        public float MinHS;
+        public float MaxHS;
+        public float MinMS;
+        public float MaxMS;
+        public vec3 BNO;
+        public float BNS;
+        public float BRA;
     }
 
 }

@@ -199,16 +199,36 @@ PrefabInstance:
       value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: WindMaxDeviation
+      value: 0.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: WindNodePowerMax
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: AtmosphereEnabled
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: NumberOfWindNodes
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: TemperatureWeight
       value: 0.25
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: WindMapResolution
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: MaximumTerrainHeight
       value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: NumberOfWindIterations
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: terrainGenerationShader

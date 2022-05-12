@@ -4,12 +4,6 @@
 // https://gist.github.com/fadookie/25adf86ae7e2753d717c
 #include "noiseSimplex.cginc"
 
-struct VertexData
-{
-    float3 Location;
-    float temperature;
-
-};
 
 struct PlanetData
 {
@@ -36,7 +30,7 @@ RWStructuredBuffer<PlanetData> Data;
 RWStructuredBuffer<vec3> Normals;
 RWStructuredBuffer<float3> Verticies;
 RWStructuredBuffer<int> Triangles;
-
+RWStructuredBuffer<float2> WindMap;
 
 float3 cameraPosition;
 float3 planetPosition;
@@ -45,10 +39,52 @@ int LevelOfDetail;
 
 //! Biome Parameters
 float TemperatureWeight;
+int WindResolution;
 
 //! Base Noise Parameter
 float Base_NoiseScale;
 float3 Base_Offset;
+
+int GetWindCoordinate(float2 _coord)
+{
+    return int(_coord.x + (_coord.y * (WindResolution * 3)));
+}
+
+float2 GetWindValue(float3 _pointOnUnitCube)
+{
+    if (_pointOnUnitCube.y >= (sqrt(2) / 2) ) // Top
+    {
+        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution), float((_pointOnUnitCube.z - 0) / (1 - 0) * (WindResolution - 0) + 0));
+        return WindMap[GetWindCoordinate(flatCoord)];
+    }
+    if (_pointOnUnitCube.y <= -(sqrt(2) / 2) ) // Bottom
+    {
+        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution), float((_pointOnUnitCube.z - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + (WindResolution * 2)));
+        return WindMap[GetWindCoordinate(flatCoord)];
+    }
+    if (_pointOnUnitCube.x >= (sqrt(2) / 2) ) // Right
+    {
+        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + WindResolution), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution));
+        return WindMap[GetWindCoordinate(flatCoord)];
+    }
+    if (_pointOnUnitCube.x <= -(sqrt(2) / 2) ) // Left
+    {
+        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * (WindResolution - 0) + WindResolution), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution));
+        return WindMap[GetWindCoordinate(flatCoord)];
+    }
+    if (_pointOnUnitCube.z >= (sqrt(2) / 2) ) // Front
+    {
+        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + (WindResolution * 2)), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution));
+        return WindMap[GetWindCoordinate(flatCoord)];
+    }
+    if (_pointOnUnitCube.z <= -(sqrt(2) / 2) ) // Back
+    {
+        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + (WindResolution * 2)), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 4) - (WindResolution * 3)) + (WindResolution * 3)));
+        return WindMap[GetWindCoordinate(flatCoord)];
+    }
+    return float2(0,0);
+}
+
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -98,6 +134,8 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                 float HeightFromGround = mapValues(length(First_TerrainVertex) - Data[0].radius, 0.0, maximumTerrainHeight, 0.0, 2 - (2 - TemperatureWeight) );
                     //! Combine values and map to a 0.0 to 1.0 value
                 float TemperatureAtVertex = mapValues(DistanceToPole + HeightFromGround, 0.0, 2.0, 0.0, 1.0);
+                //! Import Windmap and 
+                GetWindValue(pointOnUnitCube);
                 
                 
 
