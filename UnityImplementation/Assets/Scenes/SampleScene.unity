@@ -140,7 +140,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3408942677054111069, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 1000
+      value: 5000
       objectReference: {fileID: 0}
     - target: {fileID: 3408942677054111069, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: m_LocalPosition.y
@@ -184,7 +184,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 1ec7adff38e9d9445a6a3759b3d209d1, type: 2}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: Radius
-      value: 100
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: mainCamera
@@ -196,7 +196,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: BaseResolution
-      value: 25
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: WindMaxDeviation
@@ -209,6 +209,10 @@ PrefabInstance:
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: AtmosphereEnabled
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: Biomes.Array.size
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: NumberOfWindNodes
@@ -224,8 +228,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: MaximumTerrainHeight
-      value: 10
+      value: 100
       objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: biomeGenertaionShader
+      value: 
+      objectReference: {fileID: 7200000, guid: 849ef140388013f46ba3591b0209ec73, type: 3}
     - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
       propertyPath: NumberOfWindIterations
       value: 50
@@ -234,6 +242,22 @@ PrefabInstance:
       propertyPath: terrainGenerationShader
       value: 
       objectReference: {fileID: 7200000, guid: 1016d5fd6cf2d6f4c826506e40a1205f, type: 3}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: Biomes_Settings.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: Biomes_Settings.Array.data[0]
+      value: 
+      objectReference: {fileID: 11400000, guid: 25ff321b1a0048d40bcbcba1c739f1ad, type: 2}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: Biomes_Settings.Array.data[1]
+      value: 
+      objectReference: {fileID: 11400000, guid: fa8659af2339afd4c90b1bdc9890b76b, type: 2}
+    - target: {fileID: 3714292293982952624, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
+      propertyPath: Biomes_Settings.Array.data[2]
+      value: 
+      objectReference: {fileID: 11400000, guid: bc9a18acae4e759468c056e503055307, type: 2}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1ac98df723ce9e546a1913c7a4974af5, type: 3}
 --- !u!1 &705507993

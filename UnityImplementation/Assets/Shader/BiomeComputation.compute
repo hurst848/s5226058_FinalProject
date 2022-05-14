@@ -3,16 +3,27 @@
 // https://gist.github.com/fadookie/25adf86ae7e2753d717c
 #include "noiseSimplex.cginc"
 
-RWTexture2D<float4> Result;
+struct SerializedBiome
+{
+    float MinHS;
+    float MaxHS;
+    float MinMS;
+    float MaxMS;
+    float BNS;
+    float BRA;
+};
 
 RWStructuredBuffer<float> temperatureData;
-RWStructuredBuffer<float2> windData;
+RWStructuredBuffer<float> windData;
+RWStructuredBuffer<int> biomeMap;
+RWStructuredBuffer<SerializedBiome> biomes;
 
+int numBiomes;
 float TemperatureWeight;
 int BiomeMapResolution;
 float Radius;
 float NoiseScale;
-float Offset;
+float3 Offset;
 float MaximumTerrainHeight;
 
 float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
@@ -20,20 +31,45 @@ float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB
     return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
 }
 
+int2 getXYCoord(int _itr)
+{
+    if (_itr < BiomeMapResolution * BiomeMapResolution)
+    {
+        return int2(_itr % BiomeMapResolution, _itr / BiomeMapResolution); 
+    }
+    if (_itr >= BiomeMapResolution * BiomeMapResolution && _itr < BiomeMapResolution * BiomeMapResolution * 4)
+    {
+        return int2(_itr % BiomeMapResolution * 3 - (BiomeMapResolution * BiomeMapResolution) ,_itr / BiomeMapResolution); 
+    }
+    else 
+    {
+        return int2(_itr % BiomeMapResolution,_itr / BiomeMapResolution); 
+    }
+    return int2(-1,-1);   
+}
+int getBiome(int2 _coord)
+{
+    if (_coord.x == -1 && _coord.y == -1)
+    {
+        return -1;
+    }
+    if (_coord.x >= BiomeMapResolution && _coord.x < BiomeMapResolution * 2 && _coord.y < BiomeMapResolution)
+    {
+        return biomeMap[(_coord.y * BiomeMapResolution) + (_coord.x - BiomeMapResolution)];
+    }
+    if (_coord.y >= BiomeMapResolution && _coord.y < BiomeMapResolution * 2)
+    {
+        return biomeMap[_coord.x + (_coord.y * BiomeMapResolution)];
+    }
+    if (_coord.y >= BiomeMapResolution * 2 && _coord.x >= BiomeMapResolution && _coord.x < BiomeMapResolution * 2)
+    {
+        return biomeMap[(_coord.y * BiomeMapResolution) + (_coord.x - BiomeMapResolution)];
+    }
+    return -1;
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-[numthreads(8,8,1)]
+[numthreads(512,2,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     float3 normals[] = {float3(0,1,0),float3(-1,0,0),float3(0,0,1),float3(1,0,0),float3(0,-1,0),float3(0,0,-1)};
@@ -81,7 +117,52 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         }
     }
 
-    // Generate Wind
+    // Set the biome map to -1 (default value)
+    for (int i = 0; i < i < BiomeMapResolution * BiomeMapResolution * 6; i++) { biomeMap[i] = -1; }
+    // Compute Biome from Wind and temperature
+    for (int i =0; i < BiomeMapResolution * BiomeMapResolution * 6; i++)
+    {
+        float moisture = ((1 - temperatureData[i]) + windData[i]) / 2.0 ;
+        float temperature = temperatureData[i];
+        int validBiomes[50]; for (int j = 0;  j < 50; j ++) {validBiomes[j] = -1;}
+        int numPossibleBiomes = 0;
+        for (int biomeItr = 0; biomeItr < numBiomes; biomeItr++)
+        {
+            if (moisture > biomes[i].MinMS && moisture < biomes[i].MaxMS) // Check if it is the correct moisture setting
+            {
+                if (temperature > biomes[i].MinHS && temperature < biomes[i].MaxHS) // Check if it is the correct heat setting
+                {   
+                    validBiomes[numPossibleBiomes] = biomeItr;
+                    numPossibleBiomes++;
+                }
+            }
+
+        }
+        if (numPossibleBiomes == 1)
+        {
+            biomeMap[i] = validBiomes[0];
+        }
+        else 
+        {
+            int bestBiome = -1;
+            int maxNumNeighbours = -1;
+            for (int j = 0; j < numPossibleBiomes; j++)
+            {
+                int numberOfNeigbours = 0;
+                int2 coord = getXYCoord(i);
+                if (getBiome(int2(coord.x + 1, coord.y    )) == validBiomes[j]) { maxNumNeighbours++; }
+                if (getBiome(int2(coord.x + 1, coord.y - 1)) == validBiomes[j]) { maxNumNeighbours++; }
+                if (getBiome(int2(coord.x    , coord.y - 1)) == validBiomes[j]) { maxNumNeighbours++; }
+                if (getBiome(int2(coord.x - 1, coord.y - 1)) == validBiomes[j]) { maxNumNeighbours++; }
+                if (getBiome(int2(coord.x - 1, coord.y    )) == validBiomes[j]) { maxNumNeighbours++; }
+                if (getBiome(int2(coord.x - 1, coord.y + 1)) == validBiomes[j]) { maxNumNeighbours++; }
+                if (getBiome(int2(coord.x    , coord.y + 1)) == validBiomes[j]) { maxNumNeighbours++; }
+                if (getBiome(int2(coord.x + 1, coord.y + 1)) == validBiomes[j]) { maxNumNeighbours++; }
+                if (numberOfNeigbours > maxNumNeighbours) { maxNumNeighbours = numberOfNeigbours; bestBiome = validBiomes[j]; } 
+            }
+            biomeMap[i] = bestBiome;
+        }
+    }
 
 
 }

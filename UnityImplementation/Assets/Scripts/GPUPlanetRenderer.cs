@@ -43,6 +43,8 @@ public class GPUPlanetRenderer : MonoBehaviour
     public Vector3 BaseOffset = new Vector3(0, 0, 0);
 
     [Header("BiomeSettings")]
+    public List<Biome> Biomes_Settings;
+
     public int BiomeMapResolution = 50;
     private WindSimultaion wind;
     [Range(0.0f, 2.0f)]
@@ -133,14 +135,6 @@ public class GPUPlanetRenderer : MonoBehaviour
         {
             throw new System.Exception();
         }
-        // Wind Setup and Run
-        wind = new WindSimultaion();
-        wind.MaxDeviation = WindMaxDeviation;
-        wind.NumberOfWindIterations = NumberOfWindIterations;
-        wind.NumberOfWindNodes = NumberOfWindNodes;
-        wind.WindMapResolution = WindMapResolution;
-        wind.WindNodePowerMax = WindNodePowerMax;
-        StartCoroutine(wind.GenerateWind());
 
         mainCamera = Camera.main;
         AtmosphereEnabled = true;
@@ -364,6 +358,17 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     void GenerateBiomes()
     {
+        // Wind Setup and Run
+        wind = new WindSimultaion();
+        wind.MaxDeviation = WindMaxDeviation;
+        wind.NumberOfWindIterations = NumberOfWindIterations;
+        wind.NumberOfWindNodes = NumberOfWindNodes;
+        wind.WindMapResolution = WindMapResolution;
+        wind.WindNodePowerMax = WindNodePowerMax;
+        StartCoroutine(wind.GenerateWind());
+
+
+        // Rest Of Biome Generation
         biomeGenertaionShader.SetFloat("TemperatureWeight",TemperatureWeight);
         biomeGenertaionShader.SetInt("BiomeMapResolution", BiomeMapResolution);
         biomeGenertaionShader.SetFloat("Radius", Radius);
@@ -374,12 +379,24 @@ public class GPUPlanetRenderer : MonoBehaviour
         var biomeTemperatureBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, 1 * sizeof(float));
         biomeGenertaionShader.SetBuffer(0, "temperatureData", biomeTemperatureBuffer);
 
-        var biomeWindBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, 2 * sizeof(float));
+        var biomeWindBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, sizeof(float));
+        biomeWindBuffer.SetData(wind.Wind);
         biomeGenertaionShader.SetBuffer(0, "windData", biomeWindBuffer);
+
+        var biomeBiomeBuffer = new ComputeBuffer(Biomes_Settings.Count, Biome.MemSize);
+        List<Biome.SerializedBiome> biomeBufferData = new List<Biome.SerializedBiome>();
+        for (int i =0; i < Biomes_Settings.Count; i++)
+        {
+            biomeBufferData.Add(Biomes_Settings[i].ReturnSerializedBiome());
+        }
+        biomeGenertaionShader.SetBuffer(0, "biomes", biomeBiomeBuffer);
+
+        var biomeMapBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, sizeof(int));
+        biomeGenertaionShader.SetBuffer(0, "biomeMap", biomeMapBuffer);
 
         //! Get kernel ID and dispatch
         int ki = biomeGenertaionShader.FindKernel("CSMain");
-        biomeGenertaionShader.Dispatch(ki, 8, 8, 1);
+        biomeGenertaionShader.Dispatch(ki, 512, 2, 1);
 
         biomeTemperatureBuffer.Release(); biomeTemperatureBuffer.Dispose();
         biomeWindBuffer.Release(); biomeWindBuffer.Dispose();
@@ -407,10 +424,14 @@ public class WindSimultaion
 
     public Texture2D Tex;
     private bool running = false;
-    public Vector2[] WindMap;
+
+    public List<float> Wind;
+    private Vector2[] WindMap;
 
     private List<Vector2Int> tmpWindStorage;
     private Dictionary<Vector2Int, bool> windDictionary;
+
+    private float MaxWindMagnitude = 0;
 
     Vector2[] UnitCircle =
     {
@@ -432,6 +453,11 @@ public class WindSimultaion
         new Vector2(-0.5f, Mathf.Sqrt(3) / 2)               // North-North-West
     };
 
+    private void evaluateMagnitude(Vector2 _inp)
+    {
+        float tmpMag = Mathf.Abs(_inp.magnitude);
+        if (tmpMag > MaxWindMagnitude) { MaxWindMagnitude = tmpMag; }
+    }
     public IEnumerator GenerateWind()
     {
         int XRes = WindMapResolution * 3;
@@ -442,6 +468,7 @@ public class WindSimultaion
         tmpWindStorage = new List<Vector2Int>();
 
         WindMap = new Vector2[(WindMapResolution * 3) * (WindMapResolution * 4)];
+        Wind = new List<float>();
         for (int i = 0; i < WindMap.Length; i++) { WindMap[i] = Vector2.zero; }
         List<Vector2Int> windNodeOrigins = new List<Vector2Int>();
         for (int i = 0; i < NumberOfWindNodes; i++)
@@ -496,8 +523,56 @@ public class WindSimultaion
             Tex.Apply();
         }
         running = false;
+        ConvertToComputeShaderLayout();
         yield return null;
     }
+
+    private void ConvertToComputeShaderLayout()
+    {
+        for (int y = 0; y < WindMapResolution; y++)
+        {
+            for (int x = WindMapResolution; x < WindMapResolution * 2; x++)
+            {
+                float tmp  = map(WindMap[GetCoordinate(x,y)].magnitude, 0, MaxWindMagnitude, 0, 100);
+                if (tmp > 1.0f && tmp < 15) { tmp = 1.0f; }
+                else if (tmp >= 15) 
+                {
+                    int removeNonDecimal = (int)tmp;
+                    tmp = Mathf.Abs(tmp - (float) removeNonDecimal);
+                }
+                Wind.Add(tmp);
+            }
+        }
+        for (int y = WindMapResolution; y < WindMapResolution * 2; y++)
+        {
+            for (int x = 0; x < WindMapResolution * 3; x++)
+            {
+                float tmp = map(WindMap[GetCoordinate(x, y)].magnitude, 0, MaxWindMagnitude, 0, 100);
+                if (tmp > 1.0f && tmp < 15) { tmp = 1.0f; }
+                else if (tmp >= 15)
+                {
+                    int removeNonDecimal = (int)tmp;
+                    tmp = Mathf.Abs(tmp - (float)removeNonDecimal);
+                }
+                Wind.Add(tmp);
+            }
+        }
+        for (int y = WindMapResolution * 2; y < WindMapResolution * 4; y++)
+        {
+            for (int x = WindMapResolution; x < WindMapResolution * 2; x++)
+            {
+                float tmp = map(WindMap[GetCoordinate(x, y)].magnitude, 0, MaxWindMagnitude, 0, 100);
+                if (tmp > 1.0f && tmp < 15) { tmp = 1.0f; }
+                else if (tmp >= 15)
+                {
+                    int removeNonDecimal = (int)tmp;
+                    tmp = Mathf.Abs(tmp - (float)removeNonDecimal);
+                }
+                Wind.Add(tmp);
+            }
+        }
+    }
+
     private void SpreadWind(Vector2 _currentSample, int _x, int _y, ref Texture2D _storedCalculated)
     {
         Vector2 normalizedSample = _currentSample.normalized;
@@ -511,6 +586,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
                 Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
+                evaluateMagnitude(a);
                 _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -520,15 +596,18 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x, _y + 1);
                 Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x, _y + 1)] = b;
+                evaluateMagnitude(b);
                 _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
             }
             if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y + 1), out des))//_storedCalculated.GetPixel(_x + 1, _y + 1) != Color.cyan)//North East
             {
+                
                 Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
                 Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
+                evaluateMagnitude(c);
                 _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -541,6 +620,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x, _y + 1);
                 Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x, _y + 1)] = b;
+                evaluateMagnitude(b);
                 _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -550,6 +630,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
                 Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
+                evaluateMagnitude(c);
                 _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -559,6 +640,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y);
                 Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y)] = e;
+                evaluateMagnitude(e);
                 _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -572,6 +654,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
                 Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
+                evaluateMagnitude(c);
                 _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -581,6 +664,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y);
                 Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y)] = e;
+                evaluateMagnitude(e);
                 _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -590,6 +674,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
                 Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
+                evaluateMagnitude(h);
                 _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -602,6 +687,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y);
                 Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y)] = e;
+                evaluateMagnitude(e);
                 _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -611,6 +697,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
                 Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
+                evaluateMagnitude(h);
                 _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -620,6 +707,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x, _y - 1);
                 Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x, _y - 1)] = g;
+                evaluateMagnitude(g);
                 _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -632,6 +720,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
                 Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
+                evaluateMagnitude(f);
                 _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -641,6 +730,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x, _y - 1);
                 Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x, _y - 1)] = g;
+                evaluateMagnitude(g);
                 _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -650,6 +740,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
                 Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
+                evaluateMagnitude(h);
                 _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -662,6 +753,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x, _y - 1);
                 Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x, _y - 1)] = g;
+                evaluateMagnitude(g);
                 _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -671,6 +763,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
                 Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
+                evaluateMagnitude(f);
                 _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -680,6 +773,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y);
                 Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y)] = d;
+                evaluateMagnitude(d);
                 _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -692,6 +786,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
                 Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
+                evaluateMagnitude(f);
                 _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -701,6 +796,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y);
                 Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y)] = d;
+                evaluateMagnitude(d);
                 _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -710,6 +806,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
                 Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
+                evaluateMagnitude(a);
                 _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -722,6 +819,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y);
                 Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y)] = d;
+                evaluateMagnitude(d);
                 _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -731,6 +829,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
                 Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
+                evaluateMagnitude(a);
                 _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -740,6 +839,7 @@ public class WindSimultaion
                 Vector2Int tmp = new Vector2Int(_x, _y + 1);
                 Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
                 WindMap[GetCoordinate(_x, _y + 1)] = b;
+                evaluateMagnitude(b);
                 _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
                 tmpWindStorage.Add(tmp);
                 windDictionary.Add(tmp, true);
@@ -786,56 +886,13 @@ public class WindSimultaion
         return true;
 
     }
-
-
-
-}
-
-[CreateAssetMenu(menuName = "HurstPlanetGenerator/Biome")]
-public class Biome : ScriptableObject
-{
-    [Header("Selection Parameters")]
-    [Range(0.0f, 1.0f)]
-    public float MinimumHeatSelection = 0.0f;
-    [Range(0.0f, 1.0f)]
-    public float MaximumHeatSelection = 1.0f;
-    [Range(0.0f, 1.0f)]
-    public float MinimumMoistureSelection = 0.0f;
-    [Range(0.0f, 1.0f)]
-    public float MaximumMoistureSelection = 1.0f;
-    [Header("Generation Parameters")]
-    public Vector3 BiomeNoiseOffset = new Vector3(0, 0);
-    public float BiomeNoiseScale = 1.0f;
-    [Range(0.0f, 1.0f)]
-    public float BiomeRelativeAltitude= 1.0f; 
-
-    public SerializedBiome ReturnSerializedBiome()
+    // https://forum.unity.com/threads/re-map-a-number-from-one-range-to-another.119437/
+    private float map(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
     {
-        SerializedBiome rtrn;
-        vec3 tmp; tmp.x = BiomeNoiseOffset.x; tmp.y = BiomeNoiseOffset.y; tmp.z = BiomeNoiseOffset.z;
-        rtrn.BNO = tmp;
-        rtrn.BNS = BiomeNoiseScale;
-        rtrn.MaxHS = MaximumHeatSelection;
-        rtrn.MaxMS = MaximumMoistureSelection;
-        rtrn.MinHS = MinimumHeatSelection;
-        rtrn.MinMS = MinimumMoistureSelection;
-        rtrn.BRA = BiomeRelativeAltitude;
-        return rtrn;
+        return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
     }
 
 
-    public struct vec3 { public float x; public float y; public float z; }
-
-    public struct SerializedBiome
-    {
-        public float MinHS;
-        public float MaxHS;
-        public float MinMS;
-        public float MaxMS;
-        public vec3 BNO;
-        public float BNS;
-        public float BRA;
-    }
 
 }
 
