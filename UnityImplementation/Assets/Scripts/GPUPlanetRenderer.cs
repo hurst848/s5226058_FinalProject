@@ -35,8 +35,8 @@ public class GPUPlanetRenderer : MonoBehaviour
     public Gradient TestTererainGradient;
 
     [Header("LOD Settings")]
-    [Range(0, 255)]
-    int LevelOfDetail = 0;
+    [Range(1, 255)]
+    public int LevelOfDetail = 0;
 
     [Header("Base Generation Parameters")]
     public float BaseNoiseScale = 1000;
@@ -314,7 +314,7 @@ public class GPUPlanetRenderer : MonoBehaviour
 
         vertexGenerationShader.SetFloat("Base_NoiseScale", BaseNoiseScale);
         vertexGenerationShader.SetVector("Base_Offset", BaseOffset);
-
+        vertexGenerationShader.SetInt("LevelOfDetail", LevelOfDetail);
         vertexGenerationShader.SetFloat("TemperatureWeight", TemperatureWeight);
 
         //! Get kernel ID and dispatch
@@ -358,6 +358,9 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     void GenerateBiomes()
     {
+
+        // Start Time
+        float wndStrtTm = Time.realtimeSinceStartup;
         // Wind Setup and Run
         wind = new WindSimultaion();
         wind.MaxDeviation = WindMaxDeviation;
@@ -366,8 +369,12 @@ public class GPUPlanetRenderer : MonoBehaviour
         wind.WindMapResolution = WindMapResolution;
         wind.WindNodePowerMax = WindNodePowerMax;
         StartCoroutine(wind.GenerateWind());
-
-
+        // End Time
+        float wndEndTm = Time.realtimeSinceStartup;
+        float timeToComputeWind = wndEndTm - wndStrtTm;
+        Debug.Log(timeToComputeWind);
+        // Start Time
+        float bmStrtTm = Time.realtimeSinceStartup;
         // Rest Of Biome Generation
         biomeGenertaionShader.SetFloat("TemperatureWeight",TemperatureWeight);
         biomeGenertaionShader.SetInt("BiomeMapResolution", BiomeMapResolution);
@@ -396,11 +403,21 @@ public class GPUPlanetRenderer : MonoBehaviour
 
         //! Get kernel ID and dispatch
         int ki = biomeGenertaionShader.FindKernel("CSMain");
-        biomeGenertaionShader.Dispatch(ki, 512, 2, 1);
+        biomeGenertaionShader.Dispatch(ki, 16, 8, 1);
+
+        //! Retrive the Biome Data from the completed shader
+        int[] biomeMap = new int[BiomeMapResolution * BiomeMapResolution * 6];
+        biomeMapBuffer.GetData(biomeMap);
+
+        // End Time
+        float bmEndTm = Time.realtimeSinceStartup;
+        float timeToComputeBiome = bmEndTm - bmStrtTm;
+        Debug.Log(timeToComputeBiome);
 
         biomeTemperatureBuffer.Release(); biomeTemperatureBuffer.Dispose();
         biomeWindBuffer.Release(); biomeWindBuffer.Dispose();
-
+        biomeBiomeBuffer.Release(); biomeBiomeBuffer.Dispose();
+        biomeMapBuffer.Release(); biomeMapBuffer.Dispose();
     }
 
 
@@ -413,6 +430,76 @@ public class GPUPlanetRenderer : MonoBehaviour
 
 
 }
+
+/*public class BiomeMap
+{
+    public List<int> map;
+    private int mapResolution;
+
+    public BiomeMap()
+    {
+        mapResolution = 50;
+        map = new List<int>(50 * 50 * 6);
+        //for (int i = 0; i < i < BiomeMapResolution * BiomeMapResolution * 6; i++) { biomeMap[i] = -1; }
+    }
+    public BiomeMap(int _res)
+    {
+        mapResolution = _res;
+        map = new List<int>(_res * _res * 6);
+    }
+    public IEnumerator CalculateBiome(List<Biome.SerializedBiome> _biomes, List<float> _temperatureData)
+    {
+
+
+
+        yield return null;
+    }
+
+
+    float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
+    {
+        return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
+    }
+
+    private Vector2Int getXYCoord(int _itr)
+    {
+        if (_itr < mapResolution * mapResolution)
+        {
+            return new Vector2Int(_itr % mapResolution, _itr / mapResolution);
+        }
+        if (_itr >= mapResolution * mapResolution && _itr < mapResolution * mapResolution * 4)
+        {
+            return new Vector2Int(_itr % mapResolution * 3 - (mapResolution * mapResolution), _itr / mapResolution);
+        }
+        else
+        {
+            return new Vector2Int(_itr % mapResolution, _itr / mapResolution);
+        }
+        return new Vector2Int(-1, -1);
+    }
+    private int getBiome(Vector2Int _coord)
+    {
+        if (_coord.x == -1 && _coord.y == -1)
+        {
+            return -1;
+        }
+        if (_coord.x >= mapResolution && _coord.x < mapResolution * 2 && _coord.y < mapResolution)
+        {
+            return map[(_coord.y * mapResolution) + (_coord.x - mapResolution)];
+        }
+        if (_coord.y >= mapResolution && _coord.y < mapResolution * 2)
+        {
+            return map[_coord.x + (_coord.y * mapResolution)];
+        }
+        if (_coord.y >= mapResolution * 2 && _coord.x >= mapResolution && _coord.x < mapResolution * 2)
+        {
+            return map[(_coord.y * mapResolution) + (_coord.x - mapResolution)];
+        }
+        return -1;
+    }
+
+}*/
+
 
 public class WindSimultaion
 {

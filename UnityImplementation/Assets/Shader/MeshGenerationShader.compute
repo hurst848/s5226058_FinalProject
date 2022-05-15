@@ -30,7 +30,7 @@ RWStructuredBuffer<PlanetData> Data;
 RWStructuredBuffer<vec3> Normals;
 RWStructuredBuffer<float3> Verticies;
 RWStructuredBuffer<int> Triangles;
-RWStructuredBuffer<float2> WindMap;
+
 
 float3 cameraPosition;
 float3 planetPosition;
@@ -45,264 +45,327 @@ int WindResolution;
 float Base_NoiseScale;
 float3 Base_Offset;
 
-int GetWindCoordinate(float2 _coord)
-{
-    return int(_coord.x + (_coord.y * (WindResolution * 3)));
-}
 
-float2 GetWindValue(float3 _pointOnUnitCube)
-{
-    if (_pointOnUnitCube.y >= (sqrt(2) / 2) ) // Top
-    {
-        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution), float((_pointOnUnitCube.z - 0) / (1 - 0) * (WindResolution - 0) + 0));
-        return WindMap[GetWindCoordinate(flatCoord)];
-    }
-    if (_pointOnUnitCube.y <= -(sqrt(2) / 2) ) // Bottom
-    {
-        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution), float((_pointOnUnitCube.z - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + (WindResolution * 2)));
-        return WindMap[GetWindCoordinate(flatCoord)];
-    }
-    if (_pointOnUnitCube.x >= (sqrt(2) / 2) ) // Right
-    {
-        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + WindResolution), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution));
-        return WindMap[GetWindCoordinate(flatCoord)];
-    }
-    if (_pointOnUnitCube.x <= -(sqrt(2) / 2) ) // Left
-    {
-        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * (WindResolution - 0) + WindResolution), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution));
-        return WindMap[GetWindCoordinate(flatCoord)];
-    }
-    if (_pointOnUnitCube.z >= (sqrt(2) / 2) ) // Front
-    {
-        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + (WindResolution * 2)), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 2) - WindResolution) + WindResolution));
-        return WindMap[GetWindCoordinate(flatCoord)];
-    }
-    if (_pointOnUnitCube.z <= -(sqrt(2) / 2) ) // Back
-    {
-        float2 flatCoord = float2( float((_pointOnUnitCube.x - 0) / (1 - 0) * ((WindResolution * 3) - (WindResolution * 2)) + (WindResolution * 2)), float((_pointOnUnitCube.y - 0) / (1 - 0) * ((WindResolution * 4) - (WindResolution * 3)) + (WindResolution * 3)));
-        return WindMap[GetWindCoordinate(flatCoord)];
-    }
-    return float2(0,0);
-}
 
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    //! Set the poles
-    float3 NorthPole = float3(0,1,0)  * Data[0].radius;
-    float3 SouthPole = float3(0,-1,0) * Data[0].radius;
-    float3 EquatorPole = float3(1,0,0) * Data[0].radius;
-    float MaximumDistance = 0.0;
-    MaximumDistance = abs(length(NorthPole - EquatorPole));
 
-    //! Set required itr values
-    int numVerts = 0;
-    int vertIndex = 0;
-    int numTris = 0;
     for (int i = 0; i < Data[0].numNormals; i++)
     {
+        // Setup Basic Required 
         float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
         float3 AxisA = float3(normal.y, normal.z, normal.x);
         float3 AxisB = cross(normal, AxisA);
-
-        
-        for (int y = 0; y < Data[0].resolution; y++)
+        // Counters
+        int numVerts = 0;
+        int vertIndex = 0;
+        int numTris = 0;
+        // Culmaive offset from edge of face 
+        float2 offset = float2(0.0,0.0);
+        // Cycle through all the levels of detail
+        for (int j = 0; j < LevelOfDetail; j++)
         {
-            for (int x = 0; x < Data[0].resolution; x++)
+            // If its the last level of detail, generate the centeral square
+            if (j >= LevelOfDetail - 1)
             {
-                int itr = (x + (y * Data[0].resolution)) + numVerts;
-                
-                float2 percent = float2(y,x) / (Data[0].resolution - 1);
-
-                float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
-                float3 pointOnUnitSphere = normalize(pointOnUnitCube);
-                
-                // Apply initial noise values
-                float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
-
-                //! Calculate Temperature !//
-                    //! Calculate the Distance to the nearest pole
-                float3 pointOnGround = pointOnUnitSphere * Data[0].radius;
-                float DistanceToNorthPole = abs(length(NorthPole - pointOnGround));
-                float DistanceToSouthPole = abs(length(SouthPole - pointOnGround));
-                float DistanceToPole = 0.0;
-                if (DistanceToNorthPole <= MaximumDistance){ DistanceToPole = DistanceToNorthPole; }
-                else { DistanceToPole = DistanceToSouthPole; }
-                DistanceToPole = mapValues(DistanceToPole, 0.0, MaximumDistance, 0.0, 2 - TemperatureWeight);
-                    //! Calculate the Height value
-                float HeightFromGround = mapValues(length(First_TerrainVertex) - Data[0].radius, 0.0, maximumTerrainHeight, 0.0, 2 - (2 - TemperatureWeight) );
-                    //! Combine values and map to a 0.0 to 1.0 value
-                float TemperatureAtVertex = mapValues(DistanceToPole + HeightFromGround, 0.0, 2.0, 0.0, 1.0);
-                //! Import Windmap and 
-                GetWindValue(pointOnUnitCube);
-                
-                
-
-                //! Set Vertex in Array
-                Verticies[vertIndex] = First_TerrainVertex;
-                vertIndex++;
-                
-
-                if (x < Data[0].resolution -1)
+                for (int y = 0; y < Data[0].resolution; y++)
                 {
-                    if (y < Data[0].resolution -1)
+                    for (int x = 0; x < Data[0].resolution; x++)
                     {
-                        Triangles[numTris] = itr;
-                        Triangles[numTris + 1] = itr + Data[0].resolution;
-                        Triangles[numTris + 2] = itr + Data[0].resolution + 1;
-                        Triangles[numTris + 3] = itr;
-                        Triangles[numTris + 4] = itr + Data[0].resolution + 1;
-                        Triangles[numTris + 5] = itr + 1;
-                        numTris+=6;
-                    }
-                }
-            }   
-        }
-        numVerts+= Data[0].resolution * Data[0].resolution;
-    }
-        
-}
+                        int itr = (x + (y * Data[0].resolution)) + numVerts;
+                        
+                        float2 SinglePercent = float2(1,1) / (Data[0].resolution * pow(2.0, LevelOfDetail - 1.0));
 
+                        float3 pointOnUnitCube = normal + (((SinglePercent.x) * x) - 0.5f) * 2 * AxisA + (((SinglePercent.y) * y) - 0.5f) * 2 * AxisB;
+                        float3 pointOnUnitSphere = normalize(pointOnUnitCube);
+                        
+                        // Apply initial noise values
+                        float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+                        //! Set Vertex in Array
+                        Verticies[vertIndex] = First_TerrainVertex;
+                        vertIndex++;
+                        
 
-void trueLODRenderer()
-{
-    //! Set the poles
-    float3 NorthPole = float3(0,1,0)  * Data[0].radius;
-    float3 SouthPole = float3(0,-1,0) * Data[0].radius;
-    float3 EquatorPole = float3(1,0,0) * Data[0].radius;
-    float MaximumDistance = 0.0;
-    MaximumDistance = abs(length(NorthPole - EquatorPole));
-
-    //! Set required itr values
-    int numVerts = 0;
-    int vertIndex = 0;
-    int numTris = 0;
-    for (int i = 0; i < Data[0].numNormals; i++)
-    {
-        float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
-        float3 AxisA = float3(normal.y, normal.z, normal.x);
-        float3 AxisB = cross(normal, AxisA);
-
-        
-        for (int y = 0; y < Data[0].resolution; y++)
-        {
-            for (int x = 0; x < Data[0].resolution; x++)
-            {
-                int itr = (x + (y * Data[0].resolution)) + numVerts;
-                
-                float2 percent = float2(y,x) / (Data[0].resolution - 1);
-
-                float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
-                float3 pointOnUnitSphere = normalize(pointOnUnitCube);
-                
-                // Apply initial noise values
-                float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
-
-                //! Calculate Temperature !//
-                    //! Calculate the Distance to the nearest pole
-                float3 pointOnGround = pointOnUnitSphere * Data[0].radius;
-                float DistanceToNorthPole = abs(length(NorthPole - pointOnGround));
-                float DistanceToSouthPole = abs(length(SouthPole - pointOnGround));
-                float DistanceToPole = 0.0;
-                if (DistanceToNorthPole <= MaximumDistance){ DistanceToPole = DistanceToNorthPole; }
-                else { DistanceToPole = DistanceToSouthPole; }
-                DistanceToPole = mapValues(DistanceToPole, 0.0, MaximumDistance, 0.0, 2 - TemperatureWeight);
-                    //! Calculate the Height value
-                float HeightFromGround = mapValues(length(First_TerrainVertex) - Data[0].radius, 0.0, maximumTerrainHeight, 0.0, 2 - (2 - TemperatureWeight) );
-                    //! Combine values and map to a 0.0 to 1.0 value
-                float TemperatureAtVertex = mapValues(DistanceToPole + HeightFromGround, 0.0, 2.0, 0.0, 1.0);
-                
-                
-
-                //! Set Vertex in Array
-                Verticies[vertIndex] = First_TerrainVertex;
-                vertIndex++;
-                
-
-                if (x < Data[0].resolution -1)
-                {
-                    if (y < Data[0].resolution -1)
-                    {
-                        Triangles[numTris] = itr;
-                        Triangles[numTris + 1] = itr + Data[0].resolution;
-                        Triangles[numTris + 2] = itr + Data[0].resolution + 1;
-                        Triangles[numTris + 3] = itr;
-                        Triangles[numTris + 4] = itr + Data[0].resolution + 1;
-                        Triangles[numTris + 5] = itr + 1;
-                        numTris+=6;
-                    }
-                }
-            }   
-        }
-        numVerts+= Data[0].resolution * Data[0].resolution;
-    }
-}
-
-
-void LODRender()
-{
-    int numVerts = 0;
-    int vertIndex = 0;
-    int numTris = 0;
-     
-    float3 normal = float3(Normals[0].x, Normals[0].y, Normals[0].z);
-    float3 AxisA = float3(normal.y, normal.z, normal.x);
-    float3 AxisB = cross(normal, AxisA);
-
-    for (int i = 0; i < LevelOfDetail; i++)
-    {       
-        if ( i == LevelOfDetail-1)
-        {
-
-        }
-        else 
-        {
-            // Generate Verticies
-            for (int y = 0; y < Data[0].resolution; y++)
-            {
-
-                for (int x = 0; x < Data[0].resolution; x++)
-                {
-                    int itr = (x + (y * Data[0].resolution)) + numVerts;
-                    if (i == 0) // if first itr
-                    {   
-                        if ((y<=1) || (y>1 && x <= 1) || (y>1 && x >= Data[0].resolution - 2) || (y >= Data[0].resolution))
+                        if (x < Data[0].resolution -1)
                         {
-                            float2 percent = float2(y,x) / (Data[0].resolution - 1);
-                            float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
-                            float3 pointOnUnitSphere = normalize(pointOnUnitCube);
-                            float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
-                            
-                            Verticies[vertIndex] = First_TerrainVertex;
-                            vertIndex++;
+                            if (y < Data[0].resolution -1)
+                            {
+                                Triangles[numTris] = itr;
+                                Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+                                Triangles[numTris + 1] = itr + Data[0].resolution;
+                                
+                                Triangles[numTris + 3] = itr;
+                                Triangles[numTris + 5] = itr + 1;
+                                Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+                                
+                                numTris+=6;
+                            }
                         }
-                        if ((y == 0) || (x == 0) || (x == Data[0].resolution - 2) || (y == Data[0].resolution - 2))
-                        {
-                            Triangles[numTris] = itr;
-                            Triangles[numTris + 1] = itr + Data[0].resolution;
-                            Triangles[numTris + 2] = itr + Data[0].resolution + 1;
-                            Triangles[numTris + 3] = itr;
-                            Triangles[numTris + 4] = itr + Data[0].resolution + 1;
-                            Triangles[numTris + 5] = itr + 1;
-                            numTris+=6;
-                        }
-                    }
-                    else 
-                    {
-
-                    }
+                    }   
                 }
+                numVerts+= Data[0].resolution * Data[0].resolution;
+            }
+            else
+            {
 
             }
-            // Trianglulate
+        }
+    }
+    // //! Set required itr values
+    // int numVerts = 0;
+    // int vertIndex = 0;
+    // int numTris = 0;
+    // for (int i = 0; i < Data[0].numNormals; i++)
+    // {
+    //     float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
+    //     float3 AxisA = float3(normal.y, normal.z, normal.x);
+    //     float3 AxisB = cross(normal, AxisA);
+
+        
+    //     for (int y = 0; y < Data[0].resolution; y++)
+    //     {
+    //         for (int x = 0; x < Data[0].resolution; x++)
+    //         {
+    //             int itr = (x + (y * Data[0].resolution)) + numVerts;
+                
+    //             float2 percent = float2(y,x) / (Data[0].resolution - 1);
+
+    //             float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+    //             float3 pointOnUnitSphere = normalize(pointOnUnitCube);
+                
+    //             // Apply initial noise values
+    //             float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+    //             //! Set Vertex in Array
+    //             Verticies[vertIndex] = First_TerrainVertex;
+    //             vertIndex++;
+                
+
+    //             if (x < Data[0].resolution -1)
+    //             {
+    //                 if (y < Data[0].resolution -1)
+    //                 {
+    //                     Triangles[numTris] = itr;
+    //                     Triangles[numTris + 1] = itr + Data[0].resolution;
+    //                     Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+    //                     Triangles[numTris + 3] = itr;
+    //                     Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+    //                     Triangles[numTris + 5] = itr + 1;
+    //                     numTris+=6;
+    //                 }
+    //             }
+    //         }   
+    //     }
+    //     numVerts+= Data[0].resolution * Data[0].resolution;
+    // }
+        
+}
+
+void RenderLOD()
+{
+    for (int i = 0; i < Data[0].numNormals; i++)
+    {
+        // Setup Basic Required 
+        float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
+        float3 AxisA = float3(normal.y, normal.z, normal.x);
+        float3 AxisB = cross(normal, AxisA);
+        // Counters
+        int numVerts = 0;
+        int vertIndex = 0;
+        int numTris = 0;
+        // Culmaive offset from edge of face 
+        float2 offset = float2(0.0,0.0);
+        // Cycle through all the levels of detail
+        for (int j = 0; j < LevelOfDetail; j++)
+        {
+            // If its the last level of detail, generate the centeral square
+            if (j >= LevelOfDetail - 1 || LevelOfDetail == 0)
+            {
+                for (int y = 0; y < Data[0].resolution; y++)
+                {
+                    for (int x = 0; x < Data[0].resolution; x++)
+                    {
+                        int itr = (x + (y * Data[0].resolution)) + numVerts;
+                        
+                        float2 SinglePercent = float2(1,1) / (Data[0].resolution - 1);
+
+                        float3 pointOnUnitCube = normal + (((SinglePercent.x) * x) - 0.5f) * 2 * AxisA + (((SinglePercent.y) * y) - 0.5f) * 2 * AxisB;
+                        float3 pointOnUnitSphere = normalize(pointOnUnitCube);
+                        
+                        // Apply initial noise values
+                        float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+                        //! Set Vertex in Array
+                        Verticies[vertIndex] = First_TerrainVertex;
+                        vertIndex++;
+                        
+
+                        if (x < Data[0].resolution -1)
+                        {
+                            if (y < Data[0].resolution -1)
+                            {
+                                Triangles[numTris] = itr;
+                                Triangles[numTris + 1] = itr + Data[0].resolution;
+                                Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+                                Triangles[numTris + 3] = itr;
+                                Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+                                Triangles[numTris + 5] = itr + 1;
+                                numTris+=6;
+                            }
+                        }
+                    }   
+                }
+                numVerts+= Data[0].resolution * Data[0].resolution;
+            }
+            else
+            {
+
+            }
+        }
+    }
+}
+
+
+
+
+// void trueLODRenderer()
+// {
+//     //! Set the poles
+//     float3 NorthPole = float3(0,1,0)  * Data[0].radius;
+//     float3 SouthPole = float3(0,-1,0) * Data[0].radius;
+//     float3 EquatorPole = float3(1,0,0) * Data[0].radius;
+//     float MaximumDistance = 0.0;
+//     MaximumDistance = abs(length(NorthPole - EquatorPole));
+
+//     //! Set required itr values
+//     int numVerts = 0;
+//     int vertIndex = 0;
+//     int numTris = 0;
+//     for (int i = 0; i < Data[0].numNormals; i++)
+//     {
+//         float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
+//         float3 AxisA = float3(normal.y, normal.z, normal.x);
+//         float3 AxisB = cross(normal, AxisA);
+
+        
+//         for (int y = 0; y < Data[0].resolution; y++)
+//         {
+//             for (int x = 0; x < Data[0].resolution; x++)
+//             {
+//                 int itr = (x + (y * Data[0].resolution)) + numVerts;
+                
+//                 float2 percent = float2(y,x) / (Data[0].resolution - 1);
+
+//                 float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+//                 float3 pointOnUnitSphere = normalize(pointOnUnitCube);
+                
+//                 // Apply initial noise values
+//                 float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+
+//                 //! Calculate Temperature !//
+//                     //! Calculate the Distance to the nearest pole
+//                 float3 pointOnGround = pointOnUnitSphere * Data[0].radius;
+//                 float DistanceToNorthPole = abs(length(NorthPole - pointOnGround));
+//                 float DistanceToSouthPole = abs(length(SouthPole - pointOnGround));
+//                 float DistanceToPole = 0.0;
+//                 if (DistanceToNorthPole <= MaximumDistance){ DistanceToPole = DistanceToNorthPole; }
+//                 else { DistanceToPole = DistanceToSouthPole; }
+//                 DistanceToPole = mapValues(DistanceToPole, 0.0, MaximumDistance, 0.0, 2 - TemperatureWeight);
+//                     //! Calculate the Height value
+//                 float HeightFromGround = mapValues(length(First_TerrainVertex) - Data[0].radius, 0.0, maximumTerrainHeight, 0.0, 2 - (2 - TemperatureWeight) );
+//                     //! Combine values and map to a 0.0 to 1.0 value
+//                 float TemperatureAtVertex = mapValues(DistanceToPole + HeightFromGround, 0.0, 2.0, 0.0, 1.0);
+                
+                
+
+//                 //! Set Vertex in Array
+//                 Verticies[vertIndex] = First_TerrainVertex;
+//                 vertIndex++;
+                
+
+//                 if (x < Data[0].resolution -1)
+//                 {
+//                     if (y < Data[0].resolution -1)
+//                     {
+//                         Triangles[numTris] = itr;
+//                         Triangles[numTris + 1] = itr + Data[0].resolution;
+//                         Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+//                         Triangles[numTris + 3] = itr;
+//                         Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+//                         Triangles[numTris + 5] = itr + 1;
+//                         numTris+=6;
+//                     }
+//                 }
+//             }   
+//         }
+//         numVerts+= Data[0].resolution * Data[0].resolution;
+//     }
+// }
+
+
+// void LODRender()
+// {
+//     int numVerts = 0;
+//     int vertIndex = 0;
+//     int numTris = 0;
+     
+//     float3 normal = float3(Normals[0].x, Normals[0].y, Normals[0].z);
+//     float3 AxisA = float3(normal.y, normal.z, normal.x);
+//     float3 AxisB = cross(normal, AxisA);
+
+//     for (int i = 0; i < LevelOfDetail; i++)
+//     {       
+//         if ( i == LevelOfDetail-1)
+//         {
+
+//         }
+//         else 
+//         {
+//             // Generate Verticies
+//             for (int y = 0; y < Data[0].resolution; y++)
+//             {
+
+//                 for (int x = 0; x < Data[0].resolution; x++)
+//                 {
+//                     int itr = (x + (y * Data[0].resolution)) + numVerts;
+//                     if (i == 0) // if first itr
+//                     {   
+//                         if ((y<=1) || (y>1 && x <= 1) || (y>1 && x >= Data[0].resolution - 2) || (y >= Data[0].resolution))
+//                         {
+//                             float2 percent = float2(y,x) / (Data[0].resolution - 1);
+//                             float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+//                             float3 pointOnUnitSphere = normalize(pointOnUnitCube);
+//                             float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+                            
+//                             Verticies[vertIndex] = First_TerrainVertex;
+//                             vertIndex++;
+//                         }
+//                         if ((y == 0) || (x == 0) || (x == Data[0].resolution - 2) || (y == Data[0].resolution - 2))
+//                         {
+//                             Triangles[numTris] = itr;
+//                             Triangles[numTris + 1] = itr + Data[0].resolution;
+//                             Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+//                             Triangles[numTris + 3] = itr;
+//                             Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+//                             Triangles[numTris + 5] = itr + 1;
+//                             numTris+=6;
+//                         }
+//                     }
+//                     else 
+//                     {
+
+//                     }
+//                 }
+
+//             }
+//             // Trianglulate
 
 
 
              
 
-        }
-    }
-}
+//         }
+//     }
+// }
 
 

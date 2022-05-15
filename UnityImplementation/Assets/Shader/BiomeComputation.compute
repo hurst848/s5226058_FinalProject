@@ -69,7 +69,7 @@ int getBiome(int2 _coord)
 }
 
 
-[numthreads(512,2,1)]
+[numthreads(16,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     float3 normals[] = {float3(0,1,0),float3(-1,0,0),float3(0,0,1),float3(1,0,0),float3(0,-1,0),float3(0,0,-1)};
@@ -118,7 +118,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     }
 
     // Set the biome map to -1 (default value)
-    for (int i = 0; i < i < BiomeMapResolution * BiomeMapResolution * 6; i++) { biomeMap[i] = -1; }
+    for (int i = 0; i < BiomeMapResolution * BiomeMapResolution * 6; i++) { biomeMap[i] = -1; }
     // Compute Biome from Wind and temperature
     for (int i =0; i < BiomeMapResolution * BiomeMapResolution * 6; i++)
     {
