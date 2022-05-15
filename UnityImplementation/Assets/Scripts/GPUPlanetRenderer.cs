@@ -36,7 +36,7 @@ public class GPUPlanetRenderer : MonoBehaviour
 
     [Header("LOD Settings")]
     [Range(1, 255)]
-    public int LevelOfDetail = 0;
+    public int LevelOfDetail = 1;
 
     [Header("Base Generation Parameters")]
     public float BaseNoiseScale = 1000;
@@ -56,6 +56,7 @@ public class GPUPlanetRenderer : MonoBehaviour
     public float WindNodePowerMax;
     public int NumberOfWindIterations;
     public float WindMaxDeviation;
+    private List<int> Biome_Map;
 
     [Header("Atmosphere Settings")]
     public bool AtmosphereEnabled;
@@ -408,11 +409,26 @@ public class GPUPlanetRenderer : MonoBehaviour
         //! Retrive the Biome Data from the completed shader
         int[] biomeMap = new int[BiomeMapResolution * BiomeMapResolution * 6];
         biomeMapBuffer.GetData(biomeMap);
-
+        Biome_Map = new List<int>(biomeMap);
         // End Time
         float bmEndTm = Time.realtimeSinceStartup;
         float timeToComputeBiome = bmEndTm - bmStrtTm;
         Debug.Log(timeToComputeBiome);
+
+        int numdb = 0;
+        for (int i = 0; i < Biome_Map.Count; i++)
+        {
+            if (Biome_Map[i] != -1)
+            {
+                numdb++;
+            }
+        }
+        Debug.Log(numdb);
+
+
+
+
+        
 
         biomeTemperatureBuffer.Release(); biomeTemperatureBuffer.Dispose();
         biomeWindBuffer.Release(); biomeWindBuffer.Dispose();
