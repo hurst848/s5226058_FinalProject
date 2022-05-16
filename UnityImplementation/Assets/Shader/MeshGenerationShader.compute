@@ -38,10 +38,11 @@ float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB
 
 RWStructuredBuffer<PlanetData> Data;
 RWStructuredBuffer<vec3> Normals;
+RWStructuredBuffer<int> BiomeMap;
 RWStructuredBuffer<SerializedBiome> Biomes;
 RWStructuredBuffer<float3> Verticies;
 RWStructuredBuffer<int> Triangles;
-
+RWStructuredBuffer<vec3> biomeOffsets;
 
 float3 cameraPosition;
 float3 planetPosition;
@@ -51,15 +52,81 @@ int LevelOfDetail;
 //! Base Noise Parameter
 float Base_NoiseScale;
 float3 Base_Offset;
+//! Biome Stuff
+int Biome_Resolution;
+float AngleOff;
 
+int RetreiveBiome(int2 _coord)
+{
+    if (_coord.x == -1 && _coord.y == -1)
+    {
+        return -1;
+    }
+    if (_coord.x >= Biome_Resolution && _coord.x < Biome_Resolution * 2 && _coord.y < Biome_Resolution)
+    {
+        return BiomeMap[(_coord.y * Biome_Resolution) + (_coord.x + Biome_Resolution)];
+    }
+    if (_coord.y >= Biome_Resolution && _coord.y < Biome_Resolution * 2)
+    {
+        return BiomeMap[_coord.x + (_coord.y * Biome_Resolution)];
+    }
+    if (_coord.y >= Biome_Resolution * 2 && _coord.x >= Biome_Resolution && _coord.x < Biome_Resolution * 2)
+    {
+        return BiomeMap[(_coord.y * Biome_Resolution) + (_coord.x + Biome_Resolution)];
+    }
+    return -1;
+}
+
+int GetBiome(float3 _vert)
+{   
+    // If face is Top
+    if (_vert.y >= AngleOff)
+    {
+        int2 loc = int2(mapValues(_vert.x, -0.5 , 0.5, 0, 50), mapValues(_vert.z, -0.5 , 0.5, 0, 50));
+        return BiomeMap[RetreiveBiome(loc)];
+    }
+    // If Face is Bottom
+    else if (_vert.y <= AngleOff)
+    {
+        int2 loc = int2(mapValues(_vert.x, -0.5 , 0.5, 0, 50), 50 - mapValues(_vert.z, -0.5 , 0.5, 0, 50));
+        return BiomeMap[RetreiveBiome(loc)];
+    }
+    // If Face is Left
+    else if (_vert.z <= AngleOff)
+    {
+        int2 loc = int2(mapValues(_vert.z, -0.5 , 0.5, 0, 50), mapValues(_vert.y, -0.5 , 0.5, 0, 50));
+        return BiomeMap[RetreiveBiome(loc)];
+    }
+    // If Face is Right
+    else if (_vert.z >= AngleOff)
+    {
+        int2 loc = int2(mapValues(_vert.z, -0.5 , 0.5, 0, 50), 50 - mapValues(_vert.y, -0.5 , 0.5, 0, 50));
+        return BiomeMap[RetreiveBiome(loc)];
+    }
+    // If Face is Front
+    else if (_vert.x <= AngleOff)
+    {
+        int2 loc = int2(mapValues(_vert.x, -0.5 , 0.5, 0, 50), mapValues(_vert.y, -0.5 , 0.5, 0, 50));
+        return BiomeMap[RetreiveBiome(loc)];
+    }
+    // If Face is Back
+    else if (_vert.x >= AngleOff)
+    {
+        int2 loc = int2(mapValues(_vert.x, -0.5 , 0.5, 0, 50), 50 - mapValues(_vert.y, -0.5 , 0.5, 0, 50));
+        return BiomeMap[RetreiveBiome(loc)];
+    }
+    else
+    {
+        return -1;
+    }
+
+}
 
 
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
-{
-
-    
+{    
     //! Set required itr values
     int numVerts = 0;
     int vertIndex = 0;
@@ -82,12 +149,20 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                 float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
                 float3 pointOnUnitSphere = normalize(pointOnUnitCube);
                 
-                // Apply initial noise values
-                float3 First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
 
-                
-
-
+                // Get Biome and apply 
+                int BiomeAtVertex = GetBiome(pointOnUnitSphere);
+                float3 First_TerrainVertex;
+                if (BiomeAtVertex == -1)
+                {
+                    First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+                }
+                else
+                {
+                    vec3 bov3 = biomeOffsets[BiomeAtVertex];
+                    float3 bo = float3(bov3.x, bov3.y, bov3.z);
+                    First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Biomes[BiomeAtVertex].BNS + bo), 0.0, 1.0, Data[0].radius, Data[0].radius + (maximumTerrainHeight * Biomes[BiomeAtVertex].BRA));
+                }
 
                 //! Set Vertex in Array
                 Verticies[vertIndex] = First_TerrainVertex;

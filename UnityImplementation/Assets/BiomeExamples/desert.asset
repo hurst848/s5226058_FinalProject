@@ -16,6 +16,6 @@ MonoBehaviour:
   MaximumHeatSelection: 1
   MinimumMoistureSelection: 0
   MaximumMoistureSelection: 0.31
-  BiomeNoiseOffset: {x: 41.2, y: -34.08, z: 5.67}
+  BiomeNoiseOffset: {x: 45.88, y: -17.9, z: 5.67}
   BiomeNoiseScale: 6.25
-  BiomeRelativeAltitude: 0.282
+  BiomeRelativeAltitude: 0.523

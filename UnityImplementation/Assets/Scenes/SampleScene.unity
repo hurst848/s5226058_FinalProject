@@ -197,12 +197,12 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bc9a18acae4e759468c056e503055307, type: 2}
   - {fileID: 11400000, guid: 25ff321b1a0048d40bcbcba1c739f1ad, type: 2}
   BiomeMapResolution: 50
-  TemperatureWeight: 0
-  WindMapResolution: 0
+  TemperatureWeight: 0.5
   AtmosphereEnabled: 1
   ForwardRenderData: {fileID: 11400000, guid: 1ec7adff38e9d9445a6a3759b3d209d1, type: 2}
   AtmosSettings: {fileID: 11400000, guid: 6adfcb0e83aaf08449560be15b27547d, type: 2}
   MainCamera: {fileID: 963194227}
+  render: 0
 --- !u!4 &291332836
 Transform:
   m_ObjectHideFlags: 0

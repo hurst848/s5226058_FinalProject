@@ -37,7 +37,6 @@ public class Hurst_PlanetGenerator : MonoBehaviour
 
     [Range(0.0f, 2.0f)]
     public float TemperatureWeight; // Closer to zero favours Equator, closer to 2 favours height
-    public int WindMapResolution;
     private List<int> Biome_Map;
 
     [Header("Atmosphere Settings")]
@@ -57,7 +56,7 @@ public class Hurst_PlanetGenerator : MonoBehaviour
     private bool MeshUpdate;
     private Mesh TerrainMesh;
     private int RenderNumber;
-
+    public bool render = false;
 
 
     private void Awake()
@@ -81,18 +80,22 @@ public class Hurst_PlanetGenerator : MonoBehaviour
         atmosphere.featureName = "NewBlitMaterialFeature";
         atmosphere.rendererData = ForwardRenderData;
         MeshUpdate = false;
+        render = true;
     }
     private void Update()
     {
-        StartCoroutine(GenerateMesh());
-        if (MeshUpdate)
+        if (render)
         {
-            Filter.mesh = TerrainMesh;
-            MeshUpdate = false;
-        }
-        if (AtmosphereEnabled)
-        {
-            atmosphere.updateMaterial(this);
+            StartCoroutine(GenerateMesh());
+            if (MeshUpdate)
+            {
+                Filter.mesh = TerrainMesh;
+                MeshUpdate = false;
+            }
+            if (AtmosphereEnabled)
+            {
+                atmosphere.updateMaterial(this);
+            } 
         }
     }
 
@@ -137,12 +140,25 @@ public class Hurst_PlanetGenerator : MonoBehaviour
             biomeDataBuffer.SetData(sba);
             vertexGenerationShader.SetBuffer(0, "Biomes", biomeDataBuffer);
 
+        //! Add the biome map to the shader
+            var biomeMapDataBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, sizeof(int));
+            biomeMapDataBuffer.SetData(Biome_Map);
+            vertexGenerationShader.SetBuffer(0, "BiomeMap", biomeMapDataBuffer);
+
+        //! Add biome offsets to shader
+            var biomeOffsetDataBuffer = new ComputeBuffer(Biomes_Settings.Count, PlanetDataSize);
+            vec3[] boa = new vec3[Biomes_Settings.Count];
+            for (int i = 0; i < Biomes_Settings.Count; i++) { boa[i] = vec3.toVec3(Biomes_Settings[i].BiomeNoiseOffset); }
+            biomeOffsetDataBuffer.SetData(boa);
+            vertexGenerationShader.SetBuffer(0, "biomeOffsets", biomeOffsetDataBuffer);
+
         //! Add Misc varibles to the shader
             vertexGenerationShader.SetFloat("maximumTerrainHeight", MaximumTerrainHeight);
             vertexGenerationShader.SetFloat("Base_NoiseScale", BaseNoiseScale);
             vertexGenerationShader.SetVector("Base_Offset", BaseOffset);
             vertexGenerationShader.SetInt("LevelOfDetail", LevelOfDetail);
-            vertexGenerationShader.SetInt("Biome_Resolution", WindMapResolution);
+            vertexGenerationShader.SetInt("Biome_Resolution", BiomeMapResolution);
+            vertexGenerationShader.SetFloat("AngleOff", Mathf.Sqrt(2) / 2);
 
         //! Get kernel ID and dispatch
             int ki = vertexGenerationShader.FindKernel("CSMain");
@@ -171,6 +187,8 @@ public class Hurst_PlanetGenerator : MonoBehaviour
             vertexDataBuffer.Release(); vertexDataBuffer.Dispose();
             triangleDataBuffer.Release(); triangleDataBuffer.Dispose();
             biomeDataBuffer.Release(); biomeDataBuffer.Dispose();
+            biomeMapDataBuffer.Release(); biomeMapDataBuffer.Dispose();
+            biomeOffsetDataBuffer.Release(); biomeOffsetDataBuffer.Release();
 
         MeshUpdate = true;
 
