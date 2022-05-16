@@ -24,7 +24,7 @@ public class GPUPlanetRenderer : MonoBehaviour
     [Header("Shaders")]
     public ComputeShader vertexGenerationShader;
     public ComputeShader terrainGenerationShader;
-    public ComputeShader biomeGenertaionShader;
+
 
     [Header("Generation Settings")]
     public int Radius;
@@ -46,7 +46,6 @@ public class GPUPlanetRenderer : MonoBehaviour
     public List<Biome> Biomes_Settings;
 
     public int BiomeMapResolution = 50;
-    private WindSimultaion wind;
     [Range(0.0f, 2.0f)]
     public float TemperatureWeight; // Closer to zero favours Equator, closer to 2 favours height
     public int WindMapResolution;
@@ -124,13 +123,16 @@ public class GPUPlanetRenderer : MonoBehaviour
         public float y;
         public float z;
     };
+    private void Awake()
+    {
+        filter = GetComponent<MeshFilter>();
+        GalacticPosition = new DVec3(transform.position);
+        PlanetDataSize = sizeof(float) + (2 * (sizeof(int)));
+    }
 
     void Start()
     {
-
         GenerateBiomes();
-        GalacticPosition = new DVec3(transform.position);
-        PlanetDataSize = sizeof(float) + (2 * (sizeof(int)));
         cam = GameObject.FindObjectOfType<CameraScript>();
         if (cam == null)
         {
@@ -142,9 +144,7 @@ public class GPUPlanetRenderer : MonoBehaviour
         atmosphere = new Atmosphere();
         atmosphere.featureName = "NewBlitMaterialFeature";
         atmosphere.rendererData = data;
-        MeshUpdate = false;
-        filter = GetComponent<MeshFilter>();
-        
+        MeshUpdate = false;        
     }
 
     // Update is called once per frame
@@ -158,7 +158,7 @@ public class GPUPlanetRenderer : MonoBehaviour
         }
         if (AtmosphereEnabled)
         {
-            atmosphere.updateMaterial(this);
+            //atmosphere.updateMaterial(this);
         }
 
     }
@@ -279,9 +279,9 @@ public class GPUPlanetRenderer : MonoBehaviour
         PlanetData[] pd = new PlanetData[1];
         pd[0].radius = Radius;
         pd[0].resolution = BaseResolution;
-        pd[0].numNormals = 1;
+        pd[0].numNormals = 5;
 
-        var planetDataBuffer = new ComputeBuffer(1, PlanetDataSize);
+        var planetDataBuffer = new ComputeBuffer(1, sizeof(float) + (2 * (sizeof(int))));
         planetDataBuffer.SetData(pd);
         vertexGenerationShader.SetBuffer(0, "Data", planetDataBuffer);
 
@@ -289,12 +289,24 @@ public class GPUPlanetRenderer : MonoBehaviour
         List<vec3> facesToBeRendered = new List<vec3>();
         Vector3 tmpl = -(transform.position - Camera.main.transform.position).normalized;
         facesToBeRendered.Add(vec3.toVec3(tmpl));
+
+
+        /*Vector3 perpendicularA;
+        if (tmpl != Vector3.up) { perpendicularA = Vector3.Cross(tmpl, Vector3.up); }
+        else { perpendicularA = Vector3.Cross(tmpl, Vector3.right); }
+        Vector3 perpendicularB = Vector3.Cross(tmpl, perpendicularA);
+
+        facesToBeRendered.Add(vec3.toVec3(perpendicularA));
+        facesToBeRendered.Add(vec3.toVec3(-perpendicularA));
+        facesToBeRendered.Add(vec3.toVec3(perpendicularB));
+        facesToBeRendered.Add(vec3.toVec3(-perpendicularB));*/
+
         Vector3 AxisA = new Vector3(tmpl.y, tmpl.z, tmpl.x);
         Vector3 AxisB = Vector3.Cross(tmpl, AxisA);
-        facesToBeRendered.Add(vec3.toVec3(AxisA));
-        facesToBeRendered.Add(vec3.toVec3(-AxisA));
-        facesToBeRendered.Add(vec3.toVec3(AxisB));
-        facesToBeRendered.Add(vec3.toVec3(-AxisB));
+        facesToBeRendered.Add(vec3.toVec3(AxisA.normalized));
+        facesToBeRendered.Add(vec3.toVec3(-AxisA.normalized));
+        facesToBeRendered.Add(vec3.toVec3(AxisB.normalized));
+        facesToBeRendered.Add(vec3.toVec3(-AxisB.normalized));
 
 
         var normalDataBuffer = new ComputeBuffer(facesToBeRendered.Count, 3 * sizeof(float));
@@ -306,17 +318,16 @@ public class GPUPlanetRenderer : MonoBehaviour
         vertexGenerationShader.SetBuffer(0, "Verticies", vertexDataBuffer);
 
         //! Add empty triangle buffer to the shader
-        var triangleDataBuffer = new ComputeBuffer(((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count, sizeof(int));
+        var triangleDataBuffer = new ComputeBuffer(((BaseResolution - 1) * (BaseResolution - 1)) *6* facesToBeRendered.Count, sizeof(int));
         vertexGenerationShader.SetBuffer(0, "Triangles", triangleDataBuffer);
 
         //! Add Misc varibles to the shader
-        vertexGenerationShader.SetVector("cameraPosition", cam.transform.position);
         vertexGenerationShader.SetFloat("maximumTerrainHeight", MaximumTerrainHeight);
 
         vertexGenerationShader.SetFloat("Base_NoiseScale", BaseNoiseScale);
         vertexGenerationShader.SetVector("Base_Offset", BaseOffset);
         vertexGenerationShader.SetInt("LevelOfDetail", LevelOfDetail);
-        vertexGenerationShader.SetFloat("TemperatureWeight", TemperatureWeight);
+
 
         //! Get kernel ID and dispatch
         int ki = vertexGenerationShader.FindKernel("CSMain");
@@ -326,7 +337,7 @@ public class GPUPlanetRenderer : MonoBehaviour
         Vector3[] verticies = new Vector3[BaseResolution * BaseResolution * facesToBeRendered.Count];
         vertexDataBuffer.GetData(verticies);
 
-        int[] triangles = new int[((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count];
+        int[] triangles = new int[((BaseResolution - 1) * (BaseResolution - 1)) * 6* facesToBeRendered.Count];
         triangleDataBuffer.GetData(triangles);
 
         List<Color> colourz = new List<Color>(10000);
@@ -360,60 +371,14 @@ public class GPUPlanetRenderer : MonoBehaviour
     void GenerateBiomes()
     {
 
-        // Start Time
-        float wndStrtTm = Time.realtimeSinceStartup;
-        // Wind Setup and Run
-        wind = new WindSimultaion();
-        wind.MaxDeviation = WindMaxDeviation;
-        wind.NumberOfWindIterations = NumberOfWindIterations;
-        wind.NumberOfWindNodes = NumberOfWindNodes;
-        wind.WindMapResolution = WindMapResolution;
-        wind.WindNodePowerMax = WindNodePowerMax;
-        StartCoroutine(wind.GenerateWind());
-        // End Time
-        float wndEndTm = Time.realtimeSinceStartup;
-        float timeToComputeWind = wndEndTm - wndStrtTm;
-        Debug.Log(timeToComputeWind);
-        // Start Time
-        float bmStrtTm = Time.realtimeSinceStartup;
-        // Rest Of Biome Generation
-        biomeGenertaionShader.SetFloat("TemperatureWeight",TemperatureWeight);
-        biomeGenertaionShader.SetInt("BiomeMapResolution", BiomeMapResolution);
-        biomeGenertaionShader.SetFloat("Radius", Radius);
-        biomeGenertaionShader.SetFloat("NoiseScale", BaseNoiseScale);
-        biomeGenertaionShader.SetVector("Offset", BaseOffset);
-        biomeGenertaionShader.SetFloat("MaximumTerrainHeight", MaximumTerrainHeight);
-
-        var biomeTemperatureBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, 1 * sizeof(float));
-        biomeGenertaionShader.SetBuffer(0, "temperatureData", biomeTemperatureBuffer);
-
-        var biomeWindBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, sizeof(float));
-        biomeWindBuffer.SetData(wind.Wind);
-        biomeGenertaionShader.SetBuffer(0, "windData", biomeWindBuffer);
-
-        var biomeBiomeBuffer = new ComputeBuffer(Biomes_Settings.Count, Biome.MemSize);
-        List<Biome.SerializedBiome> biomeBufferData = new List<Biome.SerializedBiome>();
-        for (int i =0; i < Biomes_Settings.Count; i++)
-        {
-            biomeBufferData.Add(Biomes_Settings[i].ReturnSerializedBiome());
-        }
-        biomeGenertaionShader.SetBuffer(0, "biomes", biomeBiomeBuffer);
-
-        var biomeMapBuffer = new ComputeBuffer(BiomeMapResolution * BiomeMapResolution * 6, sizeof(int));
-        biomeGenertaionShader.SetBuffer(0, "biomeMap", biomeMapBuffer);
-
-        //! Get kernel ID and dispatch
-        int ki = biomeGenertaionShader.FindKernel("CSMain");
-        biomeGenertaionShader.Dispatch(ki, 16, 8, 1);
-
-        //! Retrive the Biome Data from the completed shader
-        int[] biomeMap = new int[BiomeMapResolution * BiomeMapResolution * 6];
-        biomeMapBuffer.GetData(biomeMap);
-        Biome_Map = new List<int>(biomeMap);
-        // End Time
-        float bmEndTm = Time.realtimeSinceStartup;
-        float timeToComputeBiome = bmEndTm - bmStrtTm;
-        Debug.Log(timeToComputeBiome);
+        BiomeGenerator generator = new BiomeGenerator();
+        generator.BiomeMapResolution = BiomeMapResolution;
+        generator.Biomes = Biomes_Settings;
+        generator.MaximumTerrainHeight = MaximumTerrainHeight;
+        generator.Radius = Radius;
+        generator.TemperatureWeight = TemperatureWeight;
+        generator.GenerateBiomeMap();
+        Biome_Map = new List<int>(generator.biomeMap);
 
         int numdb = 0;
         for (int i = 0; i < Biome_Map.Count; i++)
@@ -425,15 +390,6 @@ public class GPUPlanetRenderer : MonoBehaviour
         }
         Debug.Log(numdb);
 
-
-
-
-        
-
-        biomeTemperatureBuffer.Release(); biomeTemperatureBuffer.Dispose();
-        biomeWindBuffer.Release(); biomeWindBuffer.Dispose();
-        biomeBiomeBuffer.Release(); biomeBiomeBuffer.Dispose();
-        biomeMapBuffer.Release(); biomeMapBuffer.Dispose();
     }
 
 
@@ -447,557 +403,11 @@ public class GPUPlanetRenderer : MonoBehaviour
 
 }
 
-/*public class BiomeMap
-{
-    public List<int> map;
-    private int mapResolution;
-
-    public BiomeMap()
-    {
-        mapResolution = 50;
-        map = new List<int>(50 * 50 * 6);
-        //for (int i = 0; i < i < BiomeMapResolution * BiomeMapResolution * 6; i++) { biomeMap[i] = -1; }
-    }
-    public BiomeMap(int _res)
-    {
-        mapResolution = _res;
-        map = new List<int>(_res * _res * 6);
-    }
-    public IEnumerator CalculateBiome(List<Biome.SerializedBiome> _biomes, List<float> _temperatureData)
-    {
 
 
 
-        yield return null;
-    }
 
 
-    float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
-    {
-        return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
-    }
-
-    private Vector2Int getXYCoord(int _itr)
-    {
-        if (_itr < mapResolution * mapResolution)
-        {
-            return new Vector2Int(_itr % mapResolution, _itr / mapResolution);
-        }
-        if (_itr >= mapResolution * mapResolution && _itr < mapResolution * mapResolution * 4)
-        {
-            return new Vector2Int(_itr % mapResolution * 3 - (mapResolution * mapResolution), _itr / mapResolution);
-        }
-        else
-        {
-            return new Vector2Int(_itr % mapResolution, _itr / mapResolution);
-        }
-        return new Vector2Int(-1, -1);
-    }
-    private int getBiome(Vector2Int _coord)
-    {
-        if (_coord.x == -1 && _coord.y == -1)
-        {
-            return -1;
-        }
-        if (_coord.x >= mapResolution && _coord.x < mapResolution * 2 && _coord.y < mapResolution)
-        {
-            return map[(_coord.y * mapResolution) + (_coord.x - mapResolution)];
-        }
-        if (_coord.y >= mapResolution && _coord.y < mapResolution * 2)
-        {
-            return map[_coord.x + (_coord.y * mapResolution)];
-        }
-        if (_coord.y >= mapResolution * 2 && _coord.x >= mapResolution && _coord.x < mapResolution * 2)
-        {
-            return map[(_coord.y * mapResolution) + (_coord.x - mapResolution)];
-        }
-        return -1;
-    }
-
-}*/
-
-
-public class WindSimultaion
-{
-    public int WindMapResolution;
-    public int NumberOfWindNodes;
-    public float WindNodePowerMax;
-    public int NumberOfWindIterations;
-    public float MaxDeviation;
-
-    public Texture2D Tex;
-    private bool running = false;
-
-    public List<float> Wind;
-    private Vector2[] WindMap;
-
-    private List<Vector2Int> tmpWindStorage;
-    private Dictionary<Vector2Int, bool> windDictionary;
-
-    private float MaxWindMagnitude = 0;
-
-    Vector2[] UnitCircle =
-    {
-        new Vector2(0,1),                                   // North
-        new Vector2(0.5f, Mathf.Sqrt(3) / 2),               // North-North-East
-        new Vector2(Mathf.Sqrt(2) / 2,Mathf.Sqrt(2) / 2),   // North-East
-        new Vector2(Mathf.Sqrt(3) / 2, 0.5f),               // North-East-East
-        new Vector2(1,0),                                   // East
-        new Vector2(Mathf.Sqrt(3) / 2, -0.5f),              // South-East-East
-        new Vector2(Mathf.Sqrt(2) / 2,-Mathf.Sqrt(2) / 2),  // South-East
-        new Vector2(0.5f, -Mathf.Sqrt(3) / 2),              // South-South-East
-        new Vector2(0,-1),                                  // South
-        new Vector2(-0.5f, -Mathf.Sqrt(3) / 2),             // South-South-West
-        new Vector2(-Mathf.Sqrt(2) / 2,-Mathf.Sqrt(2) / 2), // South-West
-        new Vector2(-Mathf.Sqrt(3) / 2, -0.5f),             // South-West-West
-        new Vector2(-1,0),                                  // West
-        new Vector2(-Mathf.Sqrt(3) / 2, 0.5f),              // North-West-West
-        new Vector2(-Mathf.Sqrt(2) / 2,Mathf.Sqrt(2) / 2),  // North-West
-        new Vector2(-0.5f, Mathf.Sqrt(3) / 2)               // North-North-West
-    };
-
-    private void evaluateMagnitude(Vector2 _inp)
-    {
-        float tmpMag = Mathf.Abs(_inp.magnitude);
-        if (tmpMag > MaxWindMagnitude) { MaxWindMagnitude = tmpMag; }
-    }
-    public IEnumerator GenerateWind()
-    {
-        int XRes = WindMapResolution * 3;
-        int YRes = WindMapResolution * 4;
-        Tex = new Texture2D(XRes, YRes);
-        for (int x = 0; x < XRes; x++) { for (int y = 0; y < YRes; y++) { Tex.SetPixel(x, y, Color.black); } }
-        Tex.Apply();
-        tmpWindStorage = new List<Vector2Int>();
-
-        WindMap = new Vector2[(WindMapResolution * 3) * (WindMapResolution * 4)];
-        Wind = new List<float>();
-        for (int i = 0; i < WindMap.Length; i++) { WindMap[i] = Vector2.zero; }
-        List<Vector2Int> windNodeOrigins = new List<Vector2Int>();
-        for (int i = 0; i < NumberOfWindNodes; i++)
-        {
-            Vector2 rand = Random.insideUnitCircle;
-            rand *= Random.Range(-WindNodePowerMax, WindNodePowerMax);
-            Vector2 coord = new Vector2(Random.Range(0, (WindMapResolution * 3)), Random.Range(0, (WindMapResolution * 4)));
-            if (IsWithinMap((int)coord.x, (int)coord.y))
-            {
-                WindMap[((int)coord.x + ((int)coord.y * (WindMapResolution * 3)))] = rand;
-                windNodeOrigins.Add(new Vector2Int((int)coord.x, (int)coord.y));
-            }
-            else { i--; }
-        }
-
-        for (int i = 0; i < windNodeOrigins.Count; i++)
-        {
-            windDictionary = new Dictionary<Vector2Int, bool>();
-            List<Vector2Int> windToBeSpread = new List<Vector2Int>();
-            windToBeSpread.Add(windNodeOrigins[i]);
-            for (int j = 0; j < NumberOfWindIterations; j++)
-            {
-                tmpWindStorage = new List<Vector2Int>();
-                for (int node = 0; node < windToBeSpread.Count; node++)
-                {
-                    Texture2D StoredCalculated = new Texture2D(XRes, YRes);
-                    Vector2 CurrentSample = WindMap[GetCoordinate(windToBeSpread[node].x, windToBeSpread[node].y)];
-                    if (IsWithinMap(windToBeSpread[node].x, windToBeSpread[node].y) && IsNotOnEdge(windToBeSpread[node].x, windToBeSpread[node].y))
-                    {
-                        SpreadWind(CurrentSample, windToBeSpread[node].x, windToBeSpread[node].y, ref StoredCalculated);
-                    }
-                    else if (IsWithinMap(windToBeSpread[node].x, windToBeSpread[node].y) && !IsNotOnEdge(windToBeSpread[node].x, windToBeSpread[node].y)){}
-                    else
-                    {
-                        Tex.SetPixel(windToBeSpread[node].x, windToBeSpread[node].y, new Color(0, 0, 0));
-                    }
-                    StoredCalculated.Apply();
-                }
-                windToBeSpread.Clear();
-                windToBeSpread = new List<Vector2Int>();
-                windToBeSpread = tmpWindStorage;
-            }
-            for (int j = 0; j < WindMap.Length; j++)
-            {
-                if (WindMap[j] != Vector2.zero)
-                {
-                    Tex.SetPixel(j % XRes, j / XRes, new Color(1, 1, 1));
-                }
-            }
-            Tex.filterMode = FilterMode.Point;
-            Tex.wrapMode = TextureWrapMode.Clamp;
-            Tex.Apply();
-        }
-        running = false;
-        ConvertToComputeShaderLayout();
-        yield return null;
-    }
-
-    private void ConvertToComputeShaderLayout()
-    {
-        for (int y = 0; y < WindMapResolution; y++)
-        {
-            for (int x = WindMapResolution; x < WindMapResolution * 2; x++)
-            {
-                float tmp  = map(WindMap[GetCoordinate(x,y)].magnitude, 0, MaxWindMagnitude, 0, 100);
-                if (tmp > 1.0f && tmp < 15) { tmp = 1.0f; }
-                else if (tmp >= 15) 
-                {
-                    int removeNonDecimal = (int)tmp;
-                    tmp = Mathf.Abs(tmp - (float) removeNonDecimal);
-                }
-                Wind.Add(tmp);
-            }
-        }
-        for (int y = WindMapResolution; y < WindMapResolution * 2; y++)
-        {
-            for (int x = 0; x < WindMapResolution * 3; x++)
-            {
-                float tmp = map(WindMap[GetCoordinate(x, y)].magnitude, 0, MaxWindMagnitude, 0, 100);
-                if (tmp > 1.0f && tmp < 15) { tmp = 1.0f; }
-                else if (tmp >= 15)
-                {
-                    int removeNonDecimal = (int)tmp;
-                    tmp = Mathf.Abs(tmp - (float)removeNonDecimal);
-                }
-                Wind.Add(tmp);
-            }
-        }
-        for (int y = WindMapResolution * 2; y < WindMapResolution * 4; y++)
-        {
-            for (int x = WindMapResolution; x < WindMapResolution * 2; x++)
-            {
-                float tmp = map(WindMap[GetCoordinate(x, y)].magnitude, 0, MaxWindMagnitude, 0, 100);
-                if (tmp > 1.0f && tmp < 15) { tmp = 1.0f; }
-                else if (tmp >= 15)
-                {
-                    int removeNonDecimal = (int)tmp;
-                    tmp = Mathf.Abs(tmp - (float)removeNonDecimal);
-                }
-                Wind.Add(tmp);
-            }
-        }
-    }
-
-    private void SpreadWind(Vector2 _currentSample, int _x, int _y, ref Texture2D _storedCalculated)
-    {
-        Vector2 normalizedSample = _currentSample.normalized;
-
-        float degrees = Vector2.Angle(UnitCircle[0], normalizedSample);
-        bool des = false;
-        if (degrees < 22.5f) // Facing North
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y + 1), out des))//_storedCalculated.GetPixel(_x - 1, _y + 1) != Color.cyan)//North West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
-                Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
-                evaluateMagnitude(a);
-                _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y + 1), out des))//_storedCalculated.GetPixel(_x, _y + 1) != Color.cyan)//North
-            {
-                Vector2Int tmp = new Vector2Int(_x, _y + 1);
-                Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x, _y + 1)] = b;
-                evaluateMagnitude(b);
-                _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y + 1), out des))//_storedCalculated.GetPixel(_x + 1, _y + 1) != Color.cyan)//North East
-            {
-                
-                Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
-                Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
-                evaluateMagnitude(c);
-                _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-        }
-        else if (_currentSample.x > 0 && degrees >= 22.5 && degrees < 67.5) // Facing North East
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y + 1), out des))//_storedCalculated.GetPixel(_x, _y + 1) != Color.cyan)//North
-            {
-                Vector2Int tmp = new Vector2Int(_x, _y + 1);
-                Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x, _y + 1)] = b;
-                evaluateMagnitude(b);
-                _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y + 1), out des))//_storedCalculated.GetPixel(_x + 1, _y + 1) != Color.cyan)//North East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
-                Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
-                evaluateMagnitude(c);
-                _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y), out des))//_storedCalculated.GetPixel(_x + 1, _y) != Color.cyan)//East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y);
-                Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y)] = e;
-                evaluateMagnitude(e);
-                _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-
-        }
-        else if (_currentSample.x > 0 && degrees >= 67.5 && degrees < 112.5) // Facing East
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y + 1), out des))//_storedCalculated.GetPixel(_x + 1, _y + 1) != Color.cyan)//North East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y + 1);
-                Vector2 c = WindMap[GetCoordinate(_x + 1, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y + 1)] = c;
-                evaluateMagnitude(c);
-                _storedCalculated.SetPixel(_x + 1, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y), out des))//_storedCalculated.GetPixel(_x + 1, _y) != Color.cyan)//East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y);
-                Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y)] = e;
-                evaluateMagnitude(e);
-                _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y - 1), out des))//_storedCalculated.GetPixel(_x + 1, _y - 1) != Color.cyan)//South East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
-                Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
-                evaluateMagnitude(h);
-                _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-        }
-        else if (_currentSample.x > 0 && degrees >= 112.5 && degrees < 157.5) // Facing South East
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y), out des))//_storedCalculated.GetPixel(_x + 1, _y) != Color.cyan)//East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y);
-                Vector2 e = WindMap[GetCoordinate(_x + 1, _y)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y)] = e;
-                evaluateMagnitude(e);
-                _storedCalculated.SetPixel(_x + 1, _y, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y - 1), out des))//_storedCalculated.GetPixel(_x + 1, _y - 1) != Color.cyan)//South East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
-                Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
-                evaluateMagnitude(h);
-                _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y - 1), out des))//_storedCalculated.GetPixel(_x, _y - 1) != Color.cyan)//South
-            {
-                Vector2Int tmp = new Vector2Int(_x, _y - 1);
-                Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x, _y - 1)] = g;
-                evaluateMagnitude(g);
-                _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-        }
-        else if (degrees >= 157.5) // Facing South
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y - 1), out des))//_storedCalculated.GetPixel(_x - 1, _y - 1) != Color.cyan)//South West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
-                Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
-                evaluateMagnitude(f);
-                _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y - 1), out des))//_storedCalculated.GetPixel(_x, _y - 1) != Color.cyan)//South
-            {
-                Vector2Int tmp = new Vector2Int(_x, _y - 1);
-                Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x, _y - 1)] = g;
-                evaluateMagnitude(g);
-                _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x + 1, _y - 1), out des))//_storedCalculated.GetPixel(_x + 1, _y - 1) != Color.cyan)//South East
-            {
-                Vector2Int tmp = new Vector2Int(_x + 1, _y - 1);
-                Vector2 h = WindMap[GetCoordinate(_x + 1, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x + 1, _y - 1)] = h;
-                evaluateMagnitude(h);
-                _storedCalculated.SetPixel(_x + 1, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-        }
-        else if (_currentSample.x <= 0 && degrees >= 112.5 && degrees < 157.5) // Facing South West
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y - 1), out des))//_storedCalculated.GetPixel(_x, _y - 1) != Color.cyan)//South
-            {
-                Vector2Int tmp = new Vector2Int(_x, _y - 1);
-                Vector2 g = WindMap[GetCoordinate(_x, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x, _y - 1)] = g;
-                evaluateMagnitude(g);
-                _storedCalculated.SetPixel(_x, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y - 1), out des))//_storedCalculated.GetPixel(_x - 1, _y - 1) != Color.cyan)//South West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
-                Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
-                evaluateMagnitude(f);
-                _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y), out des))//_storedCalculated.GetPixel(_x - 1, _y) != Color.cyan)//West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y);
-                Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y)] = d;
-                evaluateMagnitude(d);
-                _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-        }
-        else if (_currentSample.x <= 0 && degrees >= 67.5 && degrees < 112.5) // Facing West
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y - 1), out des))//_storedCalculated.GetPixel(_x - 1, _y - 1) != Color.cyan)//South West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y - 1);
-                Vector2 f = WindMap[GetCoordinate(_x - 1, _y - 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y - 1)] = f;
-                evaluateMagnitude(f);
-                _storedCalculated.SetPixel(_x - 1, _y - 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y), out des))//_storedCalculated.GetPixel(_x - 1, _y) != Color.cyan)//West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y);
-                Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y)] = d;
-                evaluateMagnitude(d);
-                _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y + 1), out des))//_storedCalculated.GetPixel(_x - 1, _y + 1) != Color.cyan)//North West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
-                Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
-                evaluateMagnitude(a);
-                _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-        }
-        else if (_currentSample.x <= 0 && degrees >= 22.5 && degrees < 67.5) // Facing North West
-        {
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y), out des))//_storedCalculated.GetPixel(_x - 1, _y) != Color.cyan)//West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y);
-                Vector2 d = WindMap[GetCoordinate(_x - 1, _y)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y)] = d;
-                evaluateMagnitude(d);
-                _storedCalculated.SetPixel(_x - 1, _y, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x - 1, _y + 1), out des))//_storedCalculated.GetPixel(_x - 1, _y + 1) != Color.cyan)//North West
-            {
-                Vector2Int tmp = new Vector2Int(_x - 1, _y + 1);
-                Vector2 a = WindMap[GetCoordinate(_x - 1, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x - 1, _y + 1)] = a;
-                evaluateMagnitude(a);
-                _storedCalculated.SetPixel(_x - 1, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-            if (!windDictionary.TryGetValue(new Vector2Int(_x, _y + 1), out des))//_storedCalculated.GetPixel(_x, _y + 1) != Color.cyan)//North
-            {
-                Vector2Int tmp = new Vector2Int(_x, _y + 1);
-                Vector2 b = WindMap[GetCoordinate(_x, _y + 1)] + AddDeviation(_currentSample);
-                WindMap[GetCoordinate(_x, _y + 1)] = b;
-                evaluateMagnitude(b);
-                _storedCalculated.SetPixel(_x, _y + 1, Color.cyan);
-                tmpWindStorage.Add(tmp);
-                windDictionary.Add(tmp, true);
-            }
-        }
-
-    }
-    int GetCoordinate(int _x, int _y)
-    {
-        return _x + (_y * (WindMapResolution * 3));
-    }
-    Vector2 AddDeviation(Vector2 _inp)
-    {
-        Vector2 rtrn = new Vector2();
-        float newMag = _inp.magnitude;
-        int attribute = Random.Range(0, 4);
-        rtrn = new Vector2(_inp.x + Random.Range(-MaxDeviation, MaxDeviation), _inp.y + Random.Range(-MaxDeviation, MaxDeviation));
-        rtrn = rtrn.normalized * newMag;
-        return rtrn;
-
-    }
-    private bool IsWithinMap(int _x, int _y)
-    {
-
-        if (_x < WindMapResolution && _y < WindMapResolution) { return false; }
-        if (_x > WindMapResolution * 2 && _y < WindMapResolution) { return false; }
-        if (_x < WindMapResolution && _y > WindMapResolution * 2) { return false; }
-        if (_x > WindMapResolution * 2 && _y > WindMapResolution * 2) { return false; }
-
-        return true;
-
-    }
-    private bool IsNotOnEdge(int _x, int _y)
-    {
-        if (_y == 0) { return false; }
-        if (_x == WindMapResolution && _y < WindMapResolution) { return false; }
-        if (_x == (WindMapResolution * 2) && _y < WindMapResolution) { return false; }
-        if ((_x < WindMapResolution || _x > 2 * WindMapResolution) && _y == WindMapResolution) { return false; }
-        if (_x == 0 || _x == 3 * WindMapResolution - 1) { return false; }
-        if (_y == WindMapResolution * 2 && (_x < WindMapResolution || _x > 2 * WindMapResolution)) { return false; }
-        if (_x == WindMapResolution && _y > 2 * WindMapResolution) { return false; }
-        if (_x == 2 * WindMapResolution && _y > 2 * WindMapResolution) { return false; }
-        if (_y == 4 * WindMapResolution - 1) { return false; }
-        return true;
-
-    }
-    // https://forum.unity.com/threads/re-map-a-number-from-one-range-to-another.119437/
-    private float map(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
-    {
-        return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
-    }
-
-
-
-}
 
 
 

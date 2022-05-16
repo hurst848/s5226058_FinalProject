@@ -365,13 +365,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9c26aae505d24df41928bcc373cf0557, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WindMapResolution: 50
-  NumberOfWindNodes: 12
-  WindNodePowerMax: 7.6
-  NumberOfWindIterations: 50
-  MaxDeviation: 0.5
-  windSolverShader: {fileID: 7200000, guid: 3de4f74784cf5cc42833cfe61bb51368, type: 3}
-  Tex: {fileID: 0}
+  biomes:
+  - {fileID: 11400000, guid: 25ff321b1a0048d40bcbcba1c739f1ad, type: 2}
+  - {fileID: 11400000, guid: bc9a18acae4e759468c056e503055307, type: 2}
+  - {fileID: 11400000, guid: fa8659af2339afd4c90b1bdc9890b76b, type: 2}
 --- !u!64 &1957082853
 MeshCollider:
   m_ObjectHideFlags: 0

@@ -22,14 +22,14 @@ public class Atmosphere
         return true; ;
     }
 
-    public void updateMaterial(GPUPlanetRenderer renderer)
+    public void updateMaterial(Hurst_PlanetGenerator renderer)
     {
         bool test = TryGetFeature();
         if (test)
         {
             var bmf = feature as BlitMaterialFeature;
             var mat = bmf.Material;
-            renderer.atmosSettings.SetProperties(mat, renderer.Radius, renderer.transform.position);
+            renderer.AtmosSettings.SetProperties(mat, renderer.Radius, renderer.transform.position);
         }
     }
 
