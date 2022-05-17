@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "HurstPlanetGenerator/Biome Settings")]
+[CreateAssetMenu(menuName = "HurstPlanetGenerator/Biome Definition")]
 public class Biome : ScriptableObject
 {
     [Header("Selection Parameters")]

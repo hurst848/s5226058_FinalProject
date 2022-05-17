@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using static UnityEngine.Mathf;
 
-[CreateAssetMenu (menuName = "Celestial Body/Atmosphere")]
+[CreateAssetMenu (menuName = "HurstPlanetGenerator/Atmosphere")]
 public class AtmosphereSettings : ScriptableObject {
 
 	public bool enabled = true;

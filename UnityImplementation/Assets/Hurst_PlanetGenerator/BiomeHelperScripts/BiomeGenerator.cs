@@ -10,34 +10,20 @@ public class BiomeGenerator : MonoBehaviour
     public float Radius;
     public float MaximumTerrainHeight;
     public float TemperatureWeight= 1.0f;
-
+    public float Wind_NoiseScale = 50.0f;
     private List<float> temperatureData;
     public int[] biomeMap;
-
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
 
     public void GenerateBiomeMap()
     {
         Random.InitState((int)System.DateTime.Now.Ticks);
         PerlinWindSimulation pws = new PerlinWindSimulation();
-        pws.NoiseScale = 50.1f;
+        pws.NoiseScale = Wind_NoiseScale + 0.01f;
         pws.GenerateWind(Random.Range(0, 10000), BiomeMapResolution);
 
         temperatureData = new List<float>();
 
         biomeMap = new int[BiomeMapResolution * BiomeMapResolution * 6];
-        float NoiseScale = 10;
         Vector3[] normals = new Vector3[] { new Vector3(0, 1, 0), new Vector3(-1, 0, 0), new Vector3(0, 0, 1), new Vector3(1, 0, 0), new Vector3(0, -1, 0), new Vector3(0, 0, -1) };
         //! Set the poles
         Vector3 NorthPole = new Vector3(0, 1, 0) * Radius;
@@ -63,7 +49,7 @@ public class BiomeGenerator : MonoBehaviour
                     Vector2 percent = new Vector2(y, x) / (BiomeMapResolution - 1);
                     Vector3 pointOnUnitCube = _normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
                     Vector3 pointOnUnitSphere = (pointOnUnitCube).normalized;
-                    Vector3 TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * NoiseScale), 0.0f, 1.0f, Radius, Radius + MaximumTerrainHeight);
+                    Vector3 TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Wind_NoiseScale), 0.0f, 1.0f, Radius, Radius + MaximumTerrainHeight);
 
                     Vector3 pointOnGround = pointOnUnitSphere * Radius;
                     float DistanceToNorthPole = Mathf.Abs((NorthPole - pointOnGround).magnitude);

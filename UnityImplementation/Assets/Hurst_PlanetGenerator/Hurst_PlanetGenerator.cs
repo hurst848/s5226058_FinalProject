@@ -13,7 +13,6 @@ public class Hurst_PlanetGenerator : MonoBehaviour
 
     [Header("Shaders")]
     public ComputeShader vertexGenerationShader;
-    public ComputeShader terrainGenerationShader;
 
     [Header("Generation Settings")]
     public int Radius;
@@ -35,7 +34,7 @@ public class Hurst_PlanetGenerator : MonoBehaviour
     public List<Biome> Biomes_Settings;
 
     public int BiomeMapResolution = 50;
-
+    public float WindNoiseScale = 50.0f;
     [Range(0.0f, 2.0f)]
     public float TemperatureWeight; // Closer to zero favours Equator, closer to 2 favours height
     private List<int> Biome_Map;
@@ -103,6 +102,9 @@ public class Hurst_PlanetGenerator : MonoBehaviour
 
     private IEnumerator GenerateMesh()
     {
+        //! Calculate Distance
+            
+
         //! Adds the planetary data buffer to the shader
             PlanetData[] pd = new PlanetData[1];
             pd[0].radius = Radius;
@@ -220,6 +222,7 @@ public class Hurst_PlanetGenerator : MonoBehaviour
         generator.MaximumTerrainHeight = MaximumTerrainHeight;
         generator.Radius = Radius;
         generator.TemperatureWeight = TemperatureWeight;
+        generator.Wind_NoiseScale = WindNoiseScale;
         generator.GenerateBiomeMap();
         Biome_Map = new List<int>(generator.biomeMap);
     }

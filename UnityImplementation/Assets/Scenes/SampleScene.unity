@@ -155,10 +155,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   vertexGenerationShader: {fileID: 7200000, guid: 278e878d114b86a42839bb324dd8eadc, type: 3}
-  terrainGenerationShader: {fileID: 7200000, guid: 1016d5fd6cf2d6f4c826506e40a1205f, type: 3}
-  Radius: 6371000
+  Radius: 10000
   BaseResolution: 50
-  MaximumTerrainHeight: 7000
+  MaximumTerrainHeight: 150
   WaterLevel: 0
   TestTererainGradient:
     serializedVersion: 2
@@ -197,6 +196,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bc9a18acae4e759468c056e503055307, type: 2}
   - {fileID: 11400000, guid: 25ff321b1a0048d40bcbcba1c739f1ad, type: 2}
   BiomeMapResolution: 50
+  WindNoiseScale: 10.01
   TemperatureWeight: 0.511
   AtmosphereEnabled: 1
   ForwardRenderData: {fileID: 11400000, guid: 1ec7adff38e9d9445a6a3759b3d209d1, type: 2}
@@ -211,7 +211,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 291332834}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 12742000, y: 0, z: 0}
+  m_LocalPosition: {x: 10000, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
