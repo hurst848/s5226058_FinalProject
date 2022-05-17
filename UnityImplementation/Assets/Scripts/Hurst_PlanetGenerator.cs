@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
@@ -61,6 +62,7 @@ public class Hurst_PlanetGenerator : MonoBehaviour
 
     private void Awake()
     {
+        UnityEngine.Random.InitState((int)System.DateTime.Now.Ticks);
         Filter = GetComponent<MeshFilter>();
         GalacticPosition = new DVec3(transform.position);
         PlanetDataSize = sizeof(float) + (2 * (sizeof(int)));
@@ -117,10 +119,10 @@ public class Hurst_PlanetGenerator : MonoBehaviour
 
             Vector3 AxisA = new Vector3(tmpl.y, tmpl.z, tmpl.x);
             Vector3 AxisB = Vector3.Cross(tmpl, AxisA);
-            facesToBeRendered.Add(vec3.toVec3(AxisA.normalized));
-            facesToBeRendered.Add(vec3.toVec3(-AxisA.normalized));
-            facesToBeRendered.Add(vec3.toVec3(AxisB.normalized));
-            facesToBeRendered.Add(vec3.toVec3(-AxisB.normalized));
+            facesToBeRendered.Add(vec3.toVec3(AxisA));//.normalized));
+            facesToBeRendered.Add(vec3.toVec3(-AxisA));//.normalized));
+            facesToBeRendered.Add(vec3.toVec3(AxisB));//.normalized));
+            facesToBeRendered.Add(vec3.toVec3(-AxisB));//.normalized));
 
             var normalDataBuffer = new ComputeBuffer(facesToBeRendered.Count, 3 * sizeof(float));
             normalDataBuffer.SetData(facesToBeRendered);
@@ -151,6 +153,9 @@ public class Hurst_PlanetGenerator : MonoBehaviour
             for (int i = 0; i < Biomes_Settings.Count; i++) { boa[i] = vec3.toVec3(Biomes_Settings[i].BiomeNoiseOffset); }
             biomeOffsetDataBuffer.SetData(boa);
             vertexGenerationShader.SetBuffer(0, "biomeOffsets", biomeOffsetDataBuffer);
+        //! Add empy biome colours to the shader
+            var biomeColourDataBuffer = new ComputeBuffer(BaseResolution * BaseResolution * facesToBeRendered.Count, sizeof(int) + sizeof(float));
+            vertexGenerationShader.SetBuffer(0, "colours", biomeColourDataBuffer);
 
         //! Add Misc varibles to the shader
             vertexGenerationShader.SetFloat("maximumTerrainHeight", MaximumTerrainHeight);
@@ -172,11 +177,22 @@ public class Hurst_PlanetGenerator : MonoBehaviour
             int[] triangles = new int[((BaseResolution - 1) * (BaseResolution - 1)) * 6 * facesToBeRendered.Count];
             triangleDataBuffer.GetData(triangles);
 
+        //! Retrive colours and map them to the correct gradient
+            VertexColour[] biomeColours = new VertexColour[BaseResolution * BaseResolution * facesToBeRendered.Count];
+            biomeColourDataBuffer.GetData(biomeColours);
+            Color[] vertColours = new Color[BaseResolution * BaseResolution * facesToBeRendered.Count];
+            for (int i = 0; i < vertColours.Length; i++)
+            {
+                Color vc = Biomes_Settings[biomeColours[i].biome].BiomeColours.Evaluate(biomeColours[i].colour);
+                vertColours[i] = vc;
+            }
+
         //! Create and Update the Mesh
             TerrainMesh = new Mesh();
             TerrainMesh.indexFormat = IndexFormat.UInt32;
             TerrainMesh.SetVertices(verticies);
             TerrainMesh.SetTriangles(triangles, 0);
+            TerrainMesh.SetColors(vertColours);
             TerrainMesh.OptimizeReorderVertexBuffer();
             TerrainMesh.RecalculateNormals();
             TerrainMesh.RecalculateBounds();
@@ -197,6 +213,7 @@ public class Hurst_PlanetGenerator : MonoBehaviour
 
     private void GenerateBiomes()
     {
+        
         BiomeGenerator generator = new BiomeGenerator();
         generator.BiomeMapResolution = BiomeMapResolution;
         generator.Biomes = Biomes_Settings;
@@ -211,6 +228,7 @@ public class Hurst_PlanetGenerator : MonoBehaviour
     {
         transform.position += _inp;
         GalacticPosition += _inp;
+        atmosphere.updateMaterial(this);
     }
 
     struct PlanetData
@@ -250,5 +268,10 @@ public class Hurst_PlanetGenerator : MonoBehaviour
         public float x;
         public float y;
         public float z;
+    };
+    public struct VertexColour
+    { 
+        public int biome;
+        public float colour;
     };
 }

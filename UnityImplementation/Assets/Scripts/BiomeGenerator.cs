@@ -29,9 +29,10 @@ public class BiomeGenerator : MonoBehaviour
 
     public void GenerateBiomeMap()
     {
+        Random.InitState((int)System.DateTime.Now.Ticks);
         PerlinWindSimulation pws = new PerlinWindSimulation();
         pws.NoiseScale = 50.1f;
-        pws.GenerateWind(238123, BiomeMapResolution);
+        pws.GenerateWind(Random.Range(0, 10000), BiomeMapResolution);
 
         temperatureData = new List<float>();
 

@@ -19,7 +19,7 @@ public class Biome : ScriptableObject
     public float BiomeNoiseScale = 1.0f;
     [Range(0.0f, 1.0f)]
     public float BiomeRelativeAltitude = 1.0f;
-
+    public Gradient BiomeColours;
     public SerializedBiome ReturnSerializedBiome()
     {
         SerializedBiome rtrn;

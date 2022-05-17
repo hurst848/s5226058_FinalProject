@@ -29,6 +29,12 @@ struct vec3
     float z;
 };
 
+struct VertexColour 
+{
+    int biome;
+    float colour;
+};
+
 float mapValues(float _value, float _fromA, float _ToA, float _fromB, float _ToB)
 {
     return (_value - _fromA) / (_ToA - _fromA) * (_ToB - _fromB) + _fromB;
@@ -43,6 +49,7 @@ RWStructuredBuffer<SerializedBiome> Biomes;
 RWStructuredBuffer<float3> Verticies;
 RWStructuredBuffer<int> Triangles;
 RWStructuredBuffer<vec3> biomeOffsets;
+RWStructuredBuffer<VertexColour> colours;
 
 float3 cameraPosition;
 float3 planetPosition;
@@ -123,7 +130,6 @@ int GetBiome(float3 _vert)
 }
 
 
-
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {    
@@ -133,58 +139,142 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     int numTris = 0;
     for (int i = 0; i < Data[0].numNormals; i++)
     {
-        float3 normal = float3(Normals[i].x, Normals[i].y, Normals[i].z);
+        float3 normal = normalize(float3(Normals[0].x, Normals[0].y, Normals[0].z));
         float3 AxisA = float3(normal.y, normal.z, normal.x);
         float3 AxisB = cross(normal, AxisA);
-
-        
-        for (int y = 0; y < Data[0].resolution; y++)
-        {
-            for (int x = 0; x < Data[0].resolution; x++)
+        if (i == 0)
+        {            
+            for (int y = 0; y < Data[0].resolution; y++)
             {
-                int itr = (x + (y * Data[0].resolution)) + numVerts;
-                
-                float2 percent = float2(y,x) / (Data[0].resolution - 1);
-
-                float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
-                float3 pointOnUnitSphere = normalize(pointOnUnitCube);
-                
-
-                // Get Biome and apply 
-                int BiomeAtVertex = GetBiome(pointOnUnitSphere);
-                float3 First_TerrainVertex;
-                if (BiomeAtVertex == -1)
+                for (int x = 0; x < Data[0].resolution; x++)
                 {
-                    First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
-                }
-                else
-                {
-                    vec3 bov3 = biomeOffsets[BiomeAtVertex];
-                    float3 bo = float3(bov3.x, bov3.y, bov3.z);
-                    First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Biomes[BiomeAtVertex].BNS + bo), 0.0, 1.0, Data[0].radius, Data[0].radius + (maximumTerrainHeight * Biomes[BiomeAtVertex].BRA));
-                }
+                    int itr = (x + (y * Data[0].resolution)) + numVerts;
+                    
+                    float2 percent = float2(y,x) / (Data[0].resolution - 1);
 
-                //! Set Vertex in Array
-                Verticies[vertIndex] = First_TerrainVertex;
-                vertIndex++;
-                
+                    float3 pointOnUnitCube = normal + (percent.x - 0.5f) * 2 * AxisA + (percent.y - 0.5f) * 2 * AxisB;
+                    float3 pointOnUnitSphere = normalize(pointOnUnitCube);
+                    
 
-                if (x < Data[0].resolution -1)
-                {
-                    if (y < Data[0].resolution -1)
+                    // Get Biome and apply 
+                    int BiomeAtVertex = GetBiome(pointOnUnitSphere);
+                    float3 First_TerrainVertex;
+                    if (BiomeAtVertex == -1)
                     {
-                        Triangles[numTris] = itr;
-                        Triangles[numTris + 1] = itr + Data[0].resolution;
-                        Triangles[numTris + 2] = itr + Data[0].resolution + 1;
-                        Triangles[numTris + 3] = itr;
-                        Triangles[numTris + 4] = itr + Data[0].resolution + 1;
-                        Triangles[numTris + 5] = itr + 1;
-                        numTris+=6;
+                        First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
                     }
-                }
-            }   
+                    else
+                    {
+                        vec3 bov3 = biomeOffsets[BiomeAtVertex];
+                        float3 bo = float3(bov3.x, bov3.y, bov3.z);
+                        First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Biomes[BiomeAtVertex].BNS + bo), 0.0, 1.0, Data[0].radius, Data[0].radius + (maximumTerrainHeight * Biomes[BiomeAtVertex].BRA));
+                        VertexColour vc;
+                        vc.biome = BiomeAtVertex;
+                        vc.colour = snoise(pointOnUnitSphere * Biomes[BiomeAtVertex].BNS + bo);
+                        colours[vertIndex] = vc;
+                    }
+
+                    //! Set Vertex in Array
+                    Verticies[vertIndex] = First_TerrainVertex;
+                    vertIndex++;
+                    
+
+                    if (x < Data[0].resolution -1)
+                    {
+                        if (y < Data[0].resolution -1)
+                        {
+                            Triangles[numTris] = itr;
+                            Triangles[numTris + 1] = itr + Data[0].resolution;
+                            Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+                            Triangles[numTris + 3] = itr;
+                            Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+                            Triangles[numTris + 5] = itr + 1;
+                            numTris+=6;
+                        }
+                    }
+                }   
+            }
+            numVerts+= Data[0].resolution * Data[0].resolution;
         }
-        numVerts+= Data[0].resolution * Data[0].resolution;
+        else
+        {
+            float3 _normal = float3(0,0,0); float3 _AxisA= float3(0,0,0); float3 _AxisB= float3(0,0,0);
+            if (i == 1) // Up
+            {
+                _normal = AxisA;
+                _AxisA = -normal;
+                _AxisB = AxisB; 
+            }
+            else if (i == 2) // Down
+            {
+                _normal = -AxisA;
+                _AxisA = -normal;
+                _AxisB = -AxisB; 
+            }
+            else if (i == 3) // Left
+            {
+                _normal = AxisB;
+                _AxisA = AxisA;;
+                _AxisB = -normal; 
+            }
+            else if (i == 4) // Right
+            {
+                _normal = -AxisB;
+                _AxisA = AxisA;;
+                _AxisB = normal; 
+            }
+            for (int y = 0; y < Data[0].resolution; y++)
+            {
+                for (int x = 0; x < Data[0].resolution; x++)
+                {
+                    int itr = (x + (y * Data[0].resolution)) + numVerts;
+                    
+                    float2 percent = float2(y,x) / (Data[0].resolution - 1);
+
+                    float3 pointOnUnitCube = _normal + (percent.x - 0.5f) * 2 * _AxisA + (percent.y - 0.5f) * 2 * _AxisB;
+                    float3 pointOnUnitSphere = normalize(pointOnUnitCube);
+
+                    // Get Biome and apply 
+                    int BiomeAtVertex = GetBiome(pointOnUnitSphere);
+                    float3 First_TerrainVertex;
+                    if (BiomeAtVertex == -1)
+                    {
+                        First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Base_NoiseScale + Base_Offset), 0.0, 1.0, Data[0].radius, Data[0].radius + maximumTerrainHeight);
+                    }
+                    else
+                    {
+                        vec3 bov3 = biomeOffsets[BiomeAtVertex];
+                        float3 bo = float3(bov3.x, bov3.y, bov3.z);
+                        First_TerrainVertex = pointOnUnitSphere * mapValues(snoise(pointOnUnitSphere * Biomes[BiomeAtVertex].BNS + bo), 0.0, 1.0, Data[0].radius, Data[0].radius + (maximumTerrainHeight * Biomes[BiomeAtVertex].BRA));
+                        VertexColour vc;
+                        vc.biome = BiomeAtVertex;
+                        vc.colour = snoise(pointOnUnitSphere * Biomes[BiomeAtVertex].BNS + bo);
+                        colours[vertIndex] = vc;
+                    }
+
+                    //! Set Vertex in Array
+                    Verticies[vertIndex] = First_TerrainVertex;
+                    vertIndex++;
+
+                    if (x < Data[0].resolution -1)
+                    {
+                        if (y < Data[0].resolution -1)
+                        {
+                            Triangles[numTris] = itr;
+                            Triangles[numTris + 1] = itr + Data[0].resolution;
+                            Triangles[numTris + 2] = itr + Data[0].resolution + 1;
+                            Triangles[numTris + 3] = itr;
+                            Triangles[numTris + 4] = itr + Data[0].resolution + 1;
+                            Triangles[numTris + 5] = itr + 1;
+                            numTris+=6;
+                        }
+                    }
+                }   
+            }
+            numVerts+= Data[0].resolution * Data[0].resolution;
+
+        }
+        
     }
         
 }
